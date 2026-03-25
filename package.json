@@ -34,6 +34,10 @@
     ],
     "author": "ldystudio",
     "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/ldystudio/react-graphql-query.git"
+    },
     "peerDependencies": {
         "@tanstack/react-query": ">=5.0.0",
         "graphql-request": "6.1.0",
