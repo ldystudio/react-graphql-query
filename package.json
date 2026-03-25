@@ -1,6 +1,6 @@
 {
     "name": "@ldystudio/react-graphql-query",
-    "version": "0.1.0",
+    "version": "1.0.1",
     "description": "Definition-driven GraphQL query helpers for React and React Native built on TanStack Query and graphql-request",
     "type": "module",
     "main": "./dist/index.js",

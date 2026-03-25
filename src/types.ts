@@ -2,6 +2,8 @@ import type { QueryClient, QueryFunction, QueryKey, UseQueryOptions } from "@tan
 import type { GraphQLClient, RequestOptions } from "graphql-request";
 import type { GraphqlDefinition, GraphqlDefinitionParseKey, GraphqlDefinitionRoot } from "./definition";
 
+export type { GraphqlClientProviderProps } from "./provider";
+
 export type GraphParseKey<Path extends string> = Path extends `${infer Head}.${infer Tail}`
     ? [Head, ...GraphParseKey<Tail>]
     : [Path];

@@ -1,3 +1,4 @@
+export { useGraphqlClient } from "./context";
 export type {
     GraphqlDefinition,
     GraphqlDefinitionInput,
@@ -9,11 +10,13 @@ export { useGraphQuery } from "./hooks";
 export { inferGraphParseKey } from "./infer";
 export {
     createInitialDataByParseKey,
+    getGraphLogKey,
     getGraphParseKey,
     getGraphQueryKey,
     getParsePath,
     getValueByParseKey,
 } from "./key";
+export { GraphqlClientProvider } from "./provider";
 export { graphQuery, graphQueryOptions } from "./query";
 export type {
     AnyGraphqlDefinition,
@@ -21,6 +24,7 @@ export type {
     GraphQueryData,
     GraphQueryOptions,
     GraphQueryOptionsResult,
+    GraphqlClientProviderProps,
     GraphValueAtPath,
     GraphValueByParseKey,
     UseGraphQueryOptions,

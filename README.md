@@ -36,7 +36,11 @@ Requirements:
 
 ```ts
 import { GraphQLClient, gql } from "graphql-request";
-import { defineGraphql, useGraphQuery } from "@ldystudio/react-graphql-query";
+import {
+    defineGraphql,
+    GraphqlClientProvider,
+    useGraphQuery,
+} from "@ldystudio/react-graphql-query";
 
 const client = new GraphQLClient("https://example.com/graphql");
 
@@ -51,8 +55,7 @@ type ItemListRoot = {
     };
 };
 
-export const ITEM_LIST = defineGraphql<ItemListRoot>()({
-    client,
+const ITEM_LIST = defineGraphql<ItemListRoot>()({
     document: gql`
         query {
             catalog {
@@ -67,7 +70,7 @@ export const ITEM_LIST = defineGraphql<ItemListRoot>()({
     `,
 });
 
-function CourseList() {
+function ItemList() {
     const query = useGraphQuery(ITEM_LIST);
 
     if (query.isPending) {
@@ -76,7 +79,18 @@ function CourseList() {
 
     return query.data?.map((item) => item.title).join(", ");
 }
+
+function App() {
+    return (
+        <GraphqlClientProvider client={client}>
+            <ItemList />
+        </GraphqlClientProvider>
+    );
+}
 ```
+
+如果你的应用主要连接同一个 GraphQL endpoint，推荐在应用根部使用 `GraphqlClientProvider`，这样组件里的 `useGraphQuery` 通常就不需要重复传 `client`。  
+If your app mainly talks to a single GraphQL endpoint, wrap the app with `GraphqlClientProvider` so `useGraphQuery` usually does not need a repeated `client` option.
 
 上面的 `query.data` 类型会自动推导为 `Array<{ id: number; title: string }>`，因为默认会从 document 推导出 `parseKey = "catalog.items.nodes"`。  
 In the example above, `query.data` is automatically inferred as `Array<{ id: number; title: string }>` because the library infers `parseKey = "catalog.items.nodes"` from the document.
@@ -123,14 +137,33 @@ A definition can include these fields:
 Runs a request inside React components.
 
 ```ts
-const query = useGraphQuery(UGC_DETAIL, {
-    client,
+const query = useGraphQuery(USER_PROFILE, {
     variables: { id: 7 },
 });
 ```
 
 它内部调用 `useQuery(graphQueryOptions(...))`，返回值就是标准的 `UseQueryResult`。  
 Internally it calls `useQuery(graphQueryOptions(...))`, and the return value is a standard `UseQueryResult`.
+
+如果当前组件树被 `GraphqlClientProvider` 包裹，且 definition 和 options 都没有显式传 `client`，`useGraphQuery` 会自动使用 provider 里的 client。  
+If the current component tree is wrapped by `GraphqlClientProvider`, and neither the definition nor the options provide a `client`, `useGraphQuery` will use the provider client automatically.
+
+### `GraphqlClientProvider`
+
+给 React 组件树提供默认的 `GraphQLClient`。  
+Provides a default `GraphQLClient` for a React component tree.
+
+```ts
+<GraphqlClientProvider client={client}>
+    <App />
+</GraphqlClientProvider>
+```
+
+它只影响 Hook 场景中的 `useGraphQuery`。  
+It only affects hook-based usage through `useGraphQuery`.
+
+`graphQuery` 和 `graphQueryOptions` 仍然保持显式传入 `client` 的模式。  
+`graphQuery` and `graphQueryOptions` still keep the explicit `client` pattern.
 
 ### `graphQuery`
 
@@ -234,9 +267,10 @@ Priority order:
 
 1. `definition.client`
 2. `options.client`
+3. `provider client` from `GraphqlClientProvider`
 
-如果两边都没传，会抛错。  
-If neither is provided, the library throws an error.
+如果三者都没提供，会抛错。  
+If none of the three is available, the library throws an error.
 
 ## `queryKey` 生成规则 / `queryKey` Generation
 
@@ -266,11 +300,14 @@ If there are no variables, only the `parseKey` path is used.
 Runtime exports:
 
 - `defineGraphql`
+- `GraphqlClientProvider`
 - `useGraphQuery`
+- `useGraphqlClient`
 - `graphQuery`
 - `graphQueryOptions`
 - `inferGraphParseKey`
 - `getGraphParseKey`
+- `getGraphLogKey`
 - `getGraphQueryKey`
 - `getParsePath`
 - `getValueByParseKey`
@@ -283,6 +320,7 @@ Type exports:
 - `GraphqlDefinitionInput`
 - `GraphqlDefinitionParseKey`
 - `GraphqlDefinitionRoot`
+- `GraphqlClientProviderProps`
 - `AnyGraphqlDefinition`
 - `GraphParseKey`
 - `GraphQueryData`

@@ -6,6 +6,7 @@ import { gql } from "graphql-request";
 import type React from "react";
 import { defineGraphql } from "./definition";
 import { useGraphQuery } from "./hooks";
+import { GraphqlClientProvider } from "./provider";
 import { graphQuery, graphQueryOptions } from "./query";
 
 function createClient<TData>(resolver: (document: unknown, variables: unknown) => TData | Promise<TData>) {
@@ -153,6 +154,102 @@ describe("graph queries", () => {
         expect(result.current.data).toEqual({
             id: 7,
             title: "hello",
+        });
+    });
+
+    it("uses provider client when options.client is omitted", async () => {
+        const queryClient = new QueryClient();
+        const providerClient = createClient((_document, variables) => ({
+            user: {
+                profile: {
+                    id: (variables as { id: number }).id,
+                    name: "provider",
+                },
+            },
+        }));
+        const definition = defineGraphql<{ user: { profile: { id: number; name: string } } }>()({
+            document: gql`
+                query ($id: Int!) {
+                    user {
+                        profile(id: $id) {
+                            id
+                            name
+                        }
+                    }
+                }
+            `,
+        });
+        const wrapper = ({ children }: React.PropsWithChildren) => (
+            <QueryClientProvider client={queryClient}>
+                <GraphqlClientProvider client={providerClient}>{children}</GraphqlClientProvider>
+            </QueryClientProvider>
+        );
+
+        const { result } = renderHook(
+            () =>
+                useGraphQuery(definition, {
+                    variables: { id: 9 },
+                }),
+            { wrapper }
+        );
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+        expect(result.current.data).toEqual({
+            id: 9,
+            name: "provider",
+        });
+    });
+
+    it("gives priority to options.client over provider client", async () => {
+        const queryClient = new QueryClient();
+        const providerClient = createClient(() => ({
+            user: {
+                profile: {
+                    id: 1,
+                    name: "provider",
+                },
+            },
+        }));
+        const optionsClient = createClient(() => ({
+            user: {
+                profile: {
+                    id: 1,
+                    name: "options",
+                },
+            },
+        }));
+        const definition = defineGraphql<{ user: { profile: { id: number; name: string } } }>()({
+            document: gql`
+                query {
+                    user {
+                        profile {
+                            id
+                            name
+                        }
+                    }
+                }
+            `,
+        });
+        const wrapper = ({ children }: React.PropsWithChildren) => (
+            <QueryClientProvider client={queryClient}>
+                <GraphqlClientProvider client={providerClient}>{children}</GraphqlClientProvider>
+            </QueryClientProvider>
+        );
+
+        const { result } = renderHook(
+            () =>
+                useGraphQuery(definition, {
+                    client: optionsClient,
+                }),
+            { wrapper }
+        );
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+        expect(result.current.data).toEqual({
+            id: 1,
+            name: "options",
         });
     });
 });
