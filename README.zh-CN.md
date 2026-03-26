@@ -1,29 +1,29 @@
 # @ldystudio/react-graphql-query
 
-Definition-driven GraphQL query helpers for React and React Native, built on top of `@tanstack/react-query` and `graphql-request`.
+面向 React 和 React Native 的 definition 驱动 GraphQL 查询辅助库，基于 `@tanstack/react-query` 与 `graphql-request`。
 
-[简体中文](./README.zh-CN.md)
+[English](./README.md)
 
-## Features
+## 特性
 
-- Bind `document`, `parseKey`, default variables, default query options, and an optional `GraphQLClient` into one reusable definition
-- Return parsed target data from `useGraphQuery` and `graphQuery` instead of the full GraphQL root object
-- Infer `parseKey` conservatively from the GraphQL document, with manual override when needed
-- Support provider-based default clients for hooks through `GraphqlClientProvider`
+- 用一个 definition 绑定 `document`、`parseKey`、默认变量、默认查询配置和可选的 `GraphQLClient`
+- `useGraphQuery` 和 `graphQuery` 返回解析后的目标数据，而不是整棵 GraphQL 根对象
+- 支持从 GraphQL document 保守推导 `parseKey`，也支持手动覆盖
+- 通过 `GraphqlClientProvider` 为 Hook 场景提供默认 client
 
-## Installation
+## 安装
 
 ```bash
 npm install @ldystudio/react-graphql-query @tanstack/react-query graphql graphql-request
 ```
 
-Requirements:
+要求：
 
 - `react >= 18`
 - `@tanstack/react-query >= 5`
 - `graphql-request >= 6.1.0`
 
-## Quick Start
+## 快速开始
 
 ```tsx
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -84,15 +84,15 @@ export function App() {
 }
 ```
 
-In this example, `query.data` is inferred as `Array<{ id: number; title: string }>` because the root type and the document both converge to the same safe path: `storefront.featuredProducts.nodes`.
+这个例子里，`query.data` 会被推导为 `Array<{ id: number; title: string }>`，因为根类型和 document 都沿着同一条安全路径 `storefront.featuredProducts.nodes` 收敛。
 
-If your app mainly talks to a single GraphQL endpoint, wrap the tree with `GraphqlClientProvider` so components usually do not need to pass `client` repeatedly.
+如果你的应用主要访问同一个 GraphQL endpoint，推荐在组件树外层包一层 `GraphqlClientProvider`，这样组件里通常不需要重复传 `client`。
 
-## Core API
+## 核心 API
 
 ### `defineGraphql`
 
-Create a reusable GraphQL definition.
+定义一个可复用的 GraphQL definition。
 
 ```ts
 const PRODUCT_DETAIL = defineGraphql<{
@@ -116,17 +116,17 @@ const PRODUCT_DETAIL = defineGraphql<{
 });
 ```
 
-A definition can include:
+definition 可以包含：
 
-- `document`: required GraphQL query or mutation document
-- `parseKey`: optional response parsing path such as `catalog.product`
-- `variables`: optional default variables
-- `client`: optional `GraphQLClient` bound to the definition
-- React Query options such as `staleTime`, `gcTime`, and `enabled`
+- `document`: 必填，GraphQL 查询或 mutation 文档
+- `parseKey`: 可选，响应解析路径，例如 `catalog.product`
+- `variables`: 可选，默认变量
+- `client`: 可选，绑定在 definition 上的 `GraphQLClient`
+- React Query 选项，例如 `staleTime`、`gcTime`、`enabled`
 
 ### `useGraphQuery`
 
-Run a definition inside React components.
+在 React 组件里执行 definition。
 
 ```ts
 const query = useGraphQuery(PRODUCT_DETAIL, {
@@ -134,13 +134,13 @@ const query = useGraphQuery(PRODUCT_DETAIL, {
 });
 ```
 
-Internally it calls `useQuery(graphQueryOptions(...))` and returns a standard `UseQueryResult`.
+它内部调用 `useQuery(graphQueryOptions(...))`，返回标准 `UseQueryResult`。
 
-If the component tree is wrapped by `GraphqlClientProvider`, and neither the definition nor the hook options provide a `client`, `useGraphQuery` uses the provider client automatically.
+如果当前组件树被 `GraphqlClientProvider` 包裹，且 definition 和 hook options 都没有显式传 `client`，`useGraphQuery` 会自动使用 provider 中的 client。
 
 ### `GraphqlClientProvider`
 
-Provide a default `GraphQLClient` for hook usage.
+为 Hook 场景提供默认 `GraphQLClient`。
 
 ```tsx
 <GraphqlClientProvider client={client}>
@@ -148,9 +148,9 @@ Provide a default `GraphQLClient` for hook usage.
 </GraphqlClientProvider>
 ```
 
-It only affects `useGraphQuery`.
+它只影响 `useGraphQuery`。
 
-You can also enable `debugParseKeyHeader` so hook requests include `x-graph-parse-key`, which is useful for request logging inside `graphql-request` `requestMiddleware`.
+你也可以开启 `debugParseKeyHeader`，这样 Hook 请求会带上 `x-graph-parse-key`，方便在 `graphql-request` 的 `requestMiddleware` 里打印请求日志。
 
 ```tsx
 <GraphqlClientProvider client={client} debugParseKeyHeader>
@@ -158,11 +158,11 @@ You can also enable `debugParseKeyHeader` so hook requests include `x-graph-pars
 </GraphqlClientProvider>
 ```
 
-`graphQuery` and `graphQueryOptions` do not inherit either the provider client or this debug header flag.
+`graphQuery` 和 `graphQueryOptions` 不会继承 provider client，也不会继承这个调试 header 开关。
 
 ### `graphQuery`
 
-Fetch parsed data directly in non-hook scenarios.
+在非 Hook 场景直接获取解析后的数据。
 
 ```ts
 import { QueryClient } from "@tanstack/react-query";
@@ -177,11 +177,11 @@ const product = await graphQuery(PRODUCT_DETAIL, {
 });
 ```
 
-Useful for prefetching, route loaders, SSR, or event-driven data fetching.
+适合预取、路由加载、SSR 或事件流里取数。
 
 ### `graphQueryOptions`
 
-Build a standard TanStack Query options object.
+生成标准 TanStack Query 配置对象。
 
 ```ts
 const options = graphQueryOptions(PRODUCT_DETAIL, {
@@ -190,11 +190,11 @@ const options = graphQueryOptions(PRODUCT_DETAIL, {
 });
 ```
 
-Use it with `useQuery`, `prefetchQuery`, or other TanStack Query APIs.
+可以配合 `useQuery`、`prefetchQuery` 或其他 TanStack Query API 使用。
 
-## `parseKey` Inference
+## `parseKey` 推导
 
-By default, the library infers `parseKey` from the document.
+默认情况下，库会从 document 中自动推导 `parseKey`。
 
 ```graphql
 query {
@@ -208,19 +208,19 @@ query {
 }
 ```
 
-This resolves to:
+上面会推导出：
 
 ```ts
 "storefront.featuredProducts.nodes";
 ```
 
-The inference is intentionally conservative:
+推导规则是保守的：
 
-- It only keeps drilling down while each level has exactly one selected field
-- Runtime parsing and type inference stop at the last unambiguous node
-- Opaque wrapper values, branching shapes, or ambiguous selections stop further narrowing
+- 只有当每一层都只有一个选中字段时才会继续向下
+- 运行时解析和类型推导都会停在最后一个无歧义节点
+- 遇到不透明包装值、分叉结构或歧义选择时，不会继续收窄
 
-If you need an explicit path, pass `parseKey` manually:
+如果你需要显式路径，可以手动传 `parseKey`：
 
 ```ts
 const PRODUCT_DETAIL = defineGraphql<Root>()({
@@ -238,43 +238,43 @@ const PRODUCT_DETAIL = defineGraphql<Root>()({
 });
 ```
 
-When provided, the explicit `parseKey` wins.
+显式传入时，以手写值为准。
 
-## `client` Priority
+## `client` 优先级
 
-You can provide a `GraphQLClient` from three places:
+`GraphQLClient` 有三个来源：
 
 1. `definition.client`
 2. `options.client`
 3. `GraphqlClientProvider`
 
-Priority is:
+优先级如下：
 
 1. `definition.client`
 2. `options.client`
 3. provider client
 
-If none is available, the library throws an error.
+如果三者都没有，会抛错。
 
-## `queryKey` Generation
+## `queryKey` 生成规则
 
-`queryKey` is generated from the full `parseKey` path and the full `variables` object.
+`queryKey` 由完整的 `parseKey` 路径和完整的 `variables` 对象组成。
 
 ```ts
 getGraphQueryKey("catalog.product", { id: 7 });
 ```
 
-This produces a stable key like:
+生成结果类似：
 
 ```ts
 ["catalog", "product", { id: 7 }];
 ```
 
-Keeping the full variables object avoids collisions between requests that happen to share the same value sequence but have different meanings.
+保留完整变量对象可以避免“值序列相同但语义不同”的请求共享同一个缓存键。
 
-## Exports
+## 导出
 
-Runtime exports:
+运行时导出：
 
 - `defineGraphql`
 - `GraphqlClientProvider`
@@ -291,7 +291,7 @@ Runtime exports:
 - `getValueByParseKey`
 - `createInitialDataByParseKey`
 
-Type exports:
+类型导出：
 
 - `GraphqlDefinition`
 - `GraphqlDefinitionInput`
@@ -307,12 +307,12 @@ Type exports:
 - `GraphValueByParseKey`
 - `UseGraphQueryOptions`
 
-## Limitations
+## 限制
 
-- Only `graphql-request` is supported today
-- Automatic `parseKey` inference requires exactly one top-level field in the document
-- Inference stops at the last safe node when the shape branches or becomes ambiguous
-- `debugParseKeyHeader` only affects hook requests under `GraphqlClientProvider`
+- 当前只支持 `graphql-request`
+- 自动 `parseKey` 推导要求 document 只有一个顶层字段
+- 结构分叉或语义不明确时，推导会停在最后一个安全节点
+- `debugParseKeyHeader` 只影响 `GraphqlClientProvider` 下的 Hook 请求
 
 ## License
 

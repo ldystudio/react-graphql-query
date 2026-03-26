@@ -4,8 +4,18 @@ import { GraphqlClientContext } from "./context";
 
 export interface GraphqlClientProviderProps extends PropsWithChildren {
     client: GraphQLClient;
+    debugParseKeyHeader?: boolean;
 }
 
-export function GraphqlClientProvider({ client, children }: GraphqlClientProviderProps) {
-    return <GraphqlClientContext.Provider value={client}>{children}</GraphqlClientContext.Provider>;
+export function GraphqlClientProvider({ client, children, debugParseKeyHeader = false }: GraphqlClientProviderProps) {
+    return (
+        <GraphqlClientContext.Provider
+            value={{
+                client,
+                debugParseKeyHeader,
+            }}
+        >
+            {children}
+        </GraphqlClientContext.Provider>
+    );
 }

@@ -17,7 +17,7 @@ export {
     getValueByParseKey,
 } from "./key";
 export { GraphqlClientProvider } from "./provider";
-export { graphQuery, graphQueryOptions } from "./query";
+export { GRAPH_DEBUG_PARSE_KEY_HEADER, graphQuery, graphQueryOptions } from "./query";
 export type {
     AnyGraphqlDefinition,
     GraphParseKey,

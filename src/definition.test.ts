@@ -4,11 +4,11 @@ import { defineGraphql } from "./definition";
 
 describe("defineGraphql", () => {
     it("auto infers parseKey when omitted", () => {
-        const definition = defineGraphql<{ account: { logout: { ok: boolean } } }>()({
+        const definition = defineGraphql<{ session: { revoke: { ok: boolean } } }>()({
             document: gql`
                 mutation {
-                    account {
-                        logout {
+                    session {
+                        revoke {
                             ok
                         }
                     }
@@ -16,24 +16,24 @@ describe("defineGraphql", () => {
             `,
         });
 
-        expect(definition.parseKey).toBe("account.logout");
+        expect(definition.parseKey).toBe("session.revoke");
     });
 
     it("keeps manual parseKey override", () => {
-        const definition = defineGraphql<{ ugc: { list: { public: string[] } } }>()({
-            parseKey: "ugc.list.public",
+        const definition = defineGraphql<{ catalog: { products: { nodes: string[] } } }>()({
+            parseKey: "catalog.products.nodes",
             document: gql`
                 query {
-                    ugc {
-                        list {
-                            nextPage
-                            public
+                    catalog {
+                        products {
+                            nextCursor
+                            nodes
                         }
                     }
                 }
             `,
         });
 
-        expect(definition.parseKey).toBe("ugc.list.public");
+        expect(definition.parseKey).toBe("catalog.products.nodes");
     });
 });

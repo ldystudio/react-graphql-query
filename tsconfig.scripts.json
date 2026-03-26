@@ -1,0 +1,10 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "noEmit": true,
+        "jsx": "preserve",
+        "types": ["bun-types"]
+    },
+    "include": ["scripts/**/*.ts", "rolldown.config.ts"],
+    "exclude": ["node_modules", "dist"]
+}

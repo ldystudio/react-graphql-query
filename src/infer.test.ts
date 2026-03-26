@@ -7,44 +7,71 @@ describe("inferGraphParseKey", () => {
         expect(
             inferGraphParseKey(gql`
                 query {
-                    account {
-                        login {
-                            token
-                        }
-                    }
-                }
-            `)
-        ).toBe("account.login");
-    });
-
-    it("stops at the branching object", () => {
-        expect(
-            inferGraphParseKey(gql`
-                query {
-                    ugc {
-                        list {
-                            nextPage
-                            public {
+                    store {
+                        inventory {
+                            nodes {
                                 id
                             }
                         }
                     }
                 }
             `)
-        ).toBe("ugc.list");
+        ).toBe("store.inventory.nodes");
+    });
+
+    it("stops at the branching object", () => {
+        expect(
+            inferGraphParseKey(gql`
+                query {
+                    catalog {
+                        products {
+                            nextPage
+                            nodes {
+                                id
+                            }
+                        }
+                    }
+                }
+            `)
+        ).toBe("catalog.products");
     });
 
     it("uses aliases when present", () => {
         expect(
             inferGraphParseKey(gql`
                 query {
-                    courseAlias: course {
-                        listAlias: list {
+                    storefrontAlias: storefront {
+                        featuredAlias: featuredProducts {
                             id
                         }
                     }
                 }
             `)
-        ).toBe("courseAlias.listAlias");
+        ).toBe("storefrontAlias.featuredAlias");
+    });
+
+    it("throws when the document has multiple top-level fields", () => {
+        expect(() =>
+            inferGraphParseKey(gql`
+                query {
+                    store {
+                        id
+                    }
+                    viewer {
+                        id
+                    }
+                }
+            `)
+        ).toThrow("exactly one top-level field");
+    });
+
+    it("throws when the document does not contain an operation", () => {
+        expect(() =>
+            inferGraphParseKey(gql`
+                fragment UserProfile on User {
+                    id
+                }
+            `)
+        ).toThrow("does not contain an operation definition");
     });
 });

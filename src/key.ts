@@ -25,7 +25,7 @@ export function getGraphQueryKey(input: GraphParseKeySource, variables?: Request
         return path;
     }
 
-    return [...path, ...Object.values(variables)];
+    return [...path, variables];
 }
 
 export function getGraphLogKey(input?: unknown) {

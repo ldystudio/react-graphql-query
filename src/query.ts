@@ -11,6 +11,11 @@ import type {
 } from "./types";
 
 type GraphqlRuntimeDefinition = AnyGraphqlDefinition & Record<string, unknown>;
+type GraphQueryRuntimeOptions = {
+    debugParseKeyHeader?: boolean;
+};
+
+export const GRAPH_DEBUG_PARSE_KEY_HEADER = "x-graph-parse-key";
 
 type GraphQueryContext<TDefinition extends AnyGraphqlDefinition, TData = GraphQueryData<TDefinition>> = {
     client: GraphQLClient;
@@ -46,9 +51,21 @@ function getGraphClient<const TDefinition extends AnyGraphqlDefinition>(
     return client;
 }
 
+function withDebugParseKeyHeader(requestHeaders: RequestOptions["requestHeaders"], parseKey: string, enabled: boolean) {
+    if (!enabled) {
+        return requestHeaders;
+    }
+
+    return {
+        ...requestHeaders,
+        [GRAPH_DEBUG_PARSE_KEY_HEADER]: parseKey,
+    };
+}
+
 function resolveGraphQueryContext<const TDefinition extends AnyGraphqlDefinition, TData = GraphQueryData<TDefinition>>(
     definition: TDefinition,
-    options?: UseGraphQueryOptions<TDefinition, TData>
+    options?: UseGraphQueryOptions<TDefinition, TData>,
+    runtime?: GraphQueryRuntimeOptions
 ): GraphQueryContext<TDefinition, TData> {
     const runtimeDefinition = definition as GraphqlRuntimeDefinition;
     const {
@@ -73,7 +90,7 @@ function resolveGraphQueryContext<const TDefinition extends AnyGraphqlDefinition
         document,
         parseKey,
         variables,
-        requestHeaders,
+        requestHeaders: withDebugParseKeyHeader(requestHeaders, parseKey, runtime?.debugParseKeyHeader ?? false),
         select,
         wrappedInitialData:
             initialData == null
@@ -90,7 +107,18 @@ export function graphQueryOptions<const TDefinition extends AnyGraphqlDefinition
     definition: TDefinition,
     options?: UseGraphQueryOptions<TDefinition, TData>
 ): GraphQueryOptionsResult<GraphqlDefinitionRoot<TDefinition>, TData> {
-    const context = resolveGraphQueryContext(definition, options);
+    return graphQueryOptionsWithRuntime(definition, options);
+}
+
+export function graphQueryOptionsWithRuntime<
+    const TDefinition extends AnyGraphqlDefinition,
+    TData = GraphQueryData<TDefinition>,
+>(
+    definition: TDefinition,
+    options?: UseGraphQueryOptions<TDefinition, TData>,
+    runtime?: GraphQueryRuntimeOptions
+): GraphQueryOptionsResult<GraphqlDefinitionRoot<TDefinition>, TData> {
+    const context = resolveGraphQueryContext(definition, options, runtime);
 
     return queryOptions<GraphqlDefinitionRoot<TDefinition>, Error, TData>({
         ...(context.queryOptions as Omit<
@@ -99,10 +127,11 @@ export function graphQueryOptions<const TDefinition extends AnyGraphqlDefinition
         >),
         queryKey: getGraphQueryKey(definition, context.variables),
         queryFn: async () =>
-            context.client.request<GraphqlDefinitionRoot<TDefinition>>(context.document, context.variables, {
-                ...context.requestHeaders,
-                parseKey: context.parseKey,
-            }),
+            context.client.request<GraphqlDefinitionRoot<TDefinition>>(
+                context.document,
+                context.variables,
+                context.requestHeaders
+            ),
         select: (data) => selectGraphData(data, definition, context.select),
         ...(context.wrappedInitialData && {
             initialData: context.wrappedInitialData,
@@ -124,10 +153,11 @@ export async function graphQuery<const TDefinition extends AnyGraphqlDefinition,
         >),
         queryKey: getGraphQueryKey(definition, context.variables),
         queryFn: async () =>
-            context.client.request<GraphqlDefinitionRoot<TDefinition>>(context.document, context.variables, {
-                ...context.requestHeaders,
-                parseKey: context.parseKey,
-            }),
+            context.client.request<GraphqlDefinitionRoot<TDefinition>>(
+                context.document,
+                context.variables,
+                context.requestHeaders
+            ),
         ...(context.wrappedInitialData && {
             initialData: context.wrappedInitialData,
         }),

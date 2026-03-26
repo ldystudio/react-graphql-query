@@ -1,13 +1,13 @@
 import type { UseQueryResult } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
-import { useGraphqlClient } from "./context";
-import { graphQueryOptions } from "./query";
+import { useGraphqlClientContext } from "./context";
+import { graphQueryOptionsWithRuntime } from "./query";
 import type { AnyGraphqlDefinition, GraphQueryData, UseGraphQueryOptions } from "./types";
 
 function withContextClient<const TDefinition extends AnyGraphqlDefinition, TData = GraphQueryData<TDefinition>>(
     definition: TDefinition,
     options: UseGraphQueryOptions<TDefinition, TData> | undefined,
-    contextClient: ReturnType<typeof useGraphqlClient>
+    contextClient: ReturnType<typeof useGraphqlClientContext>["client"]
 ) {
     if (definition.client || options?.client || !contextClient) {
         return options;
@@ -23,7 +23,11 @@ export function useGraphQuery<const TDefinition extends AnyGraphqlDefinition, TD
     definition: TDefinition,
     options?: UseGraphQueryOptions<TDefinition, TData>
 ): UseQueryResult<TData, Error> {
-    const contextClient = useGraphqlClient();
+    const context = useGraphqlClientContext();
 
-    return useQuery(graphQueryOptions(definition, withContextClient(definition, options, contextClient)));
+    return useQuery(
+        graphQueryOptionsWithRuntime(definition, withContextClient(definition, options, context.client), {
+            debugParseKeyHeader: context.debugParseKeyHeader,
+        })
+    );
 }

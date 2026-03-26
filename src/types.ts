@@ -1,4 +1,4 @@
-import type { QueryClient, QueryFunction, QueryKey, UseQueryOptions } from "@tanstack/react-query";
+import type { FetchQueryOptions, QueryClient, QueryFunction, QueryKey, UseQueryOptions } from "@tanstack/react-query";
 import type { GraphQLClient, RequestOptions } from "graphql-request";
 import type { GraphqlDefinition, GraphqlDefinitionParseKey, GraphqlDefinitionRoot } from "./definition";
 
@@ -34,15 +34,20 @@ export type GraphQueryData<TDefinition extends AnyGraphqlDefinition> = GraphValu
 
 type GraphRequestOptions = Pick<RequestOptions, "requestHeaders" | "variables">;
 
-type GraphQueryBaseOptions<TQueryFnData, TData> = Omit<
+type GraphQueryHookBaseOptions<TQueryFnData, TData> = Omit<
     UseQueryOptions<TQueryFnData, Error, TData>,
     "initialData" | "queryKey" | "queryFn" | "select"
+>;
+
+type GraphQueryFetchBaseOptions<TQueryFnData> = Omit<
+    FetchQueryOptions<TQueryFnData, Error, TQueryFnData>,
+    "initialData" | "queryKey" | "queryFn"
 >;
 
 export type UseGraphQueryOptions<
     TDefinition extends AnyGraphqlDefinition,
     TData = GraphQueryData<TDefinition>,
-> = GraphQueryBaseOptions<GraphqlDefinitionRoot<TDefinition>, TData> &
+> = GraphQueryHookBaseOptions<GraphqlDefinitionRoot<TDefinition>, TData> &
     GraphRequestOptions & {
         client?: GraphQLClient;
         initialData?: GraphQueryData<TDefinition>;
@@ -52,9 +57,13 @@ export type UseGraphQueryOptions<
 export type GraphQueryOptions<
     TDefinition extends AnyGraphqlDefinition,
     TData = GraphQueryData<TDefinition>,
-> = UseGraphQueryOptions<TDefinition, TData> & {
-    queryClient: QueryClient;
-};
+> = GraphQueryFetchBaseOptions<GraphqlDefinitionRoot<TDefinition>> &
+    GraphRequestOptions & {
+        client?: GraphQLClient;
+        initialData?: GraphQueryData<TDefinition>;
+        queryClient: QueryClient;
+        select?: (data: GraphQueryData<TDefinition>) => TData;
+    };
 
 export type GraphQueryOptionsResult<TQueryFnData, TData = TQueryFnData> = Omit<
     UseQueryOptions<TQueryFnData, Error, TData, QueryKey>,
