@@ -14,6 +14,8 @@ import type {
     GraphqlDefinitionParseKey,
     GraphqlDefinitionRoot,
     GraphqlDefinitionVariables,
+    GraphqlDocument,
+    GraphqlDocumentRoot,
     GraphqlVariables,
 } from "./definition";
 
@@ -53,6 +55,19 @@ export type AnyGraphqlDefinition = GraphqlDefinition<unknown, string, GraphqlVar
 export type GraphQueryData<TDefinition extends AnyGraphqlDefinition> = GraphValueByParseKey<
     GraphqlDefinitionRoot<TDefinition>,
     GraphqlDefinitionParseKey<TDefinition>
+>;
+
+export type GraphDataItem<TData> = TData extends readonly (infer Item)[] ? Item : never;
+
+export type GraphQueryItem<TDefinition extends AnyGraphqlDefinition> = GraphDataItem<GraphQueryData<TDefinition>>;
+
+export type GraphDocumentData<TDocument extends GraphqlDocument, ParseKey extends string> = GraphValueByParseKey<
+    GraphqlDocumentRoot<TDocument>,
+    ParseKey
+>;
+
+export type GraphDocumentItem<TDocument extends GraphqlDocument, ParseKey extends string> = GraphDataItem<
+    GraphDocumentData<TDocument, ParseKey>
 >;
 
 export type GraphQueryDataUpdater<TData> = TData | ((currentData: TData | undefined) => TData | undefined);

@@ -23,7 +23,7 @@
         "lint": "biome check .",
         "lint:fix": "biome check --write .",
         "format": "biome format --write .",
-        "prepublishOnly": "bun run lint && bun test && bun run build"
+        "prepublishOnly": "bun format && bun lint && bun test && bun run build"
     },
     "keywords": [
         "react",

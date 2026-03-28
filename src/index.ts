@@ -6,8 +6,8 @@ export {
     removeGraphQuery,
     resetGraphQuery,
     setGraphData,
-} from './cache';
-export { useGraphqlClient } from './context';
+} from "./cache";
+export { useGraphqlClient } from "./context";
 export type {
     GraphqlDefinition,
     GraphqlDefinitionDocument,
@@ -19,11 +19,11 @@ export type {
     GraphqlDocument,
     GraphqlDocumentRoot,
     GraphqlDocumentVariables,
-} from './definition';
-export { defineGraphql } from './definition';
-export { useGraphMutation, useGraphQuery, useInfiniteGraphQuery } from './hooks';
-export { inferGraphParseKey } from './infer';
-export { graphInfiniteQueryOptions } from './infinite';
+} from "./definition";
+export { defineGraphql } from "./definition";
+export { useGraphMutation, useGraphQuery, useInfiniteGraphQuery } from "./hooks";
+export { inferGraphParseKey } from "./infer";
+export { graphInfiniteQueryOptions } from "./infinite";
 export {
     createInitialDataByParseKey,
     getGraphLogKey,
@@ -31,12 +31,15 @@ export {
     getGraphQueryKey,
     getParsePath,
     getValueByParseKey,
-} from './key';
-export { graphMutation } from './mutation';
-export { GraphqlClientProvider, GraphqlQueryProvider } from './provider';
-export { GRAPH_DEBUG_PARSE_KEY_HEADER, graphQuery, graphQueryOptions } from './query';
+} from "./key";
+export { graphMutation } from "./mutation";
+export { GraphqlClientProvider, GraphqlQueryProvider } from "./provider";
+export { GRAPH_DEBUG_PARSE_KEY_HEADER, graphQuery, graphQueryOptions } from "./query";
 export type {
     AnyGraphqlDefinition,
+    GraphDataItem,
+    GraphDocumentData,
+    GraphDocumentItem,
     GraphInfiniteData,
     GraphInfiniteQueryOptionsResult,
     GraphMutationContext,
@@ -46,6 +49,7 @@ export type {
     GraphParseKey,
     GraphQueryData,
     GraphQueryDataUpdater,
+    GraphQueryItem,
     GraphQueryOptions,
     GraphQueryOptionsResult,
     GraphqlClientProviderProps,
@@ -55,4 +59,4 @@ export type {
     UseGraphMutationOptions,
     UseGraphQueryOptions,
     UseInfiniteGraphQueryOptions,
-} from './types';
+} from "./types";
