@@ -1,7 +1,15 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { GraphQLClient, RequestOptions } from "graphql-request";
-import type { GraphqlDefinitionRoot } from "./definition";
-import { createInitialDataByParseKey, getGraphQueryKey, getValueByParseKey } from "./key";
+import type { GraphqlDefinitionDocument, GraphqlDefinitionRoot, GraphqlDefinitionVariables } from "./definition";
+import { createInitialDataByParseKey, getGraphQueryKey } from "./key";
+import {
+    GRAPH_DEBUG_PARSE_KEY_HEADER,
+    getGraphClient,
+    requestGraphRootData,
+    resolveGraphVariables,
+    selectGraphData,
+    withDebugParseKeyHeader,
+} from "./runtime";
 import type {
     AnyGraphqlDefinition,
     GraphQueryData,
@@ -15,52 +23,16 @@ type GraphQueryRuntimeOptions = {
     debugParseKeyHeader?: boolean;
 };
 
-export const GRAPH_DEBUG_PARSE_KEY_HEADER = "x-graph-parse-key";
-
 type GraphQueryContext<TDefinition extends AnyGraphqlDefinition, TData = GraphQueryData<TDefinition>> = {
     client: GraphQLClient;
-    document: RequestOptions["document"];
+    document: GraphqlDefinitionDocument<TDefinition>;
     parseKey: string;
-    variables?: RequestOptions["variables"];
+    variables?: GraphqlDefinitionVariables<TDefinition>;
     requestHeaders?: RequestOptions["requestHeaders"];
     select?: (data: GraphQueryData<TDefinition>) => TData;
     wrappedInitialData?: GraphqlDefinitionRoot<TDefinition>;
     queryOptions: Record<string, unknown>;
 };
-
-function selectGraphData<const TDefinition extends AnyGraphqlDefinition, TData = GraphQueryData<TDefinition>>(
-    rootData: GraphqlDefinitionRoot<TDefinition>,
-    definition: TDefinition,
-    select?: (parsedData: GraphQueryData<TDefinition>) => TData
-) {
-    const shadow = getValueByParseKey(rootData, definition) as GraphQueryData<TDefinition>;
-
-    return select ? select(shadow) : (shadow as TData);
-}
-
-function getGraphClient<const TDefinition extends AnyGraphqlDefinition>(
-    definition: TDefinition,
-    options?: { client?: GraphQLClient }
-) {
-    const client = definition.client ?? options?.client;
-
-    if (!client) {
-        throw new Error("GraphQL client is required. Pass it via definition.client or options.client.");
-    }
-
-    return client;
-}
-
-function withDebugParseKeyHeader(requestHeaders: RequestOptions["requestHeaders"], parseKey: string, enabled: boolean) {
-    if (!enabled) {
-        return requestHeaders;
-    }
-
-    return {
-        ...requestHeaders,
-        [GRAPH_DEBUG_PARSE_KEY_HEADER]: parseKey,
-    };
-}
 
 function resolveGraphQueryContext<const TDefinition extends AnyGraphqlDefinition, TData = GraphQueryData<TDefinition>>(
     definition: TDefinition,
@@ -70,26 +42,21 @@ function resolveGraphQueryContext<const TDefinition extends AnyGraphqlDefinition
     const runtimeDefinition = definition as GraphqlRuntimeDefinition;
     const {
         __rootType: _rootType,
+        __variablesType: _variablesType,
         client: _definitionClient,
-        document,
-        parseKey,
-        variables: definitionVariables,
+        key: _definitionKey,
         ...definitionQueryOptions
     } = runtimeDefinition;
-    const {
-        client,
-        initialData,
-        requestHeaders,
-        select,
-        variables = definitionVariables,
-        ...runtimeOptions
-    } = options ?? {};
+    const document = runtimeDefinition.document as GraphqlDefinitionDocument<TDefinition>;
+    const parseKey = runtimeDefinition.parseKey as string;
+    const definitionVariables = runtimeDefinition.variables as GraphqlDefinitionVariables<TDefinition> | undefined;
+    const { client, initialData, requestHeaders, select, variables, ...runtimeOptions } = options ?? {};
 
     return {
         client: getGraphClient(definition, { client }),
         document,
         parseKey,
-        variables,
+        variables: resolveGraphVariables(definitionVariables, variables),
         requestHeaders: withDebugParseKeyHeader(requestHeaders, parseKey, runtime?.debugParseKeyHeader ?? false),
         select,
         wrappedInitialData:
@@ -126,11 +93,13 @@ export function graphQueryOptionsWithRuntime<
             "client" | "initialData" | "requestHeaders" | "select" | "variables"
         >),
         queryKey: getGraphQueryKey(definition, context.variables),
-        queryFn: async () =>
-            context.client.request<GraphqlDefinitionRoot<TDefinition>>(
+        queryFn: ({ signal }) =>
+            requestGraphRootData<TDefinition>(
+                context.client,
                 context.document,
                 context.variables,
-                context.requestHeaders
+                context.requestHeaders,
+                signal
             ),
         select: (data) => selectGraphData(data, definition, context.select),
         ...(context.wrappedInitialData && {
@@ -152,11 +121,13 @@ export async function graphQuery<const TDefinition extends AnyGraphqlDefinition,
             "client" | "initialData" | "queryClient" | "requestHeaders" | "select" | "variables"
         >),
         queryKey: getGraphQueryKey(definition, context.variables),
-        queryFn: async () =>
-            context.client.request<GraphqlDefinitionRoot<TDefinition>>(
+        queryFn: ({ signal }) =>
+            requestGraphRootData<TDefinition>(
+                context.client,
                 context.document,
                 context.variables,
-                context.requestHeaders
+                context.requestHeaders,
+                signal
             ),
         ...(context.wrappedInitialData && {
             initialData: context.wrappedInitialData,
@@ -165,3 +136,5 @@ export async function graphQuery<const TDefinition extends AnyGraphqlDefinition,
 
     return selectGraphData(rootData, definition, context.select);
 }
+
+export { GRAPH_DEBUG_PARSE_KEY_HEADER };

@@ -1,26 +1,35 @@
 import { describe, expect, it } from "bun:test";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
-import type { GraphQLClient } from "graphql-request";
+import type { GraphQLClient, RequestOptions } from "graphql-request";
 import { gql } from "graphql-request";
 import type React from "react";
-import { defineGraphql } from "./definition";
-import { useGraphQuery } from "./hooks";
-import { getGraphQueryKey } from "./key";
-import { GraphqlClientProvider } from "./provider";
-import { GRAPH_DEBUG_PARSE_KEY_HEADER, graphQuery, graphQueryOptions } from "./query";
+import { defineGraphql } from "../definition";
+import { useGraphQuery } from "../hooks";
+import { getGraphQueryKey } from "../key";
+import { GraphqlClientProvider, GraphqlQueryProvider } from "../provider";
+import { GRAPH_DEBUG_PARSE_KEY_HEADER, graphQuery, graphQueryOptions } from "../query";
 
 function createClient<TData>(
     resolver: (document: unknown, variables: unknown, requestHeaders?: unknown) => TData | Promise<TData>
 ) {
     return {
-        request: async (document: unknown, variables: unknown, requestHeaders?: unknown) =>
-            resolver(document, variables, requestHeaders),
+        request: async (...args: [unknown] | [unknown, unknown, unknown?]) => {
+            if (args.length === 1 && typeof args[0] === "object" && args[0] !== null && "document" in args[0]) {
+                const options = args[0] as RequestOptions;
+
+                return resolver(options.document, options.variables, options.requestHeaders);
+            }
+
+            const [document, variables, requestHeaders] = args;
+
+            return resolver(document, variables, requestHeaders);
+        },
     } as GraphQLClient;
 }
 
-describe("graph queries", () => {
-    it("uses graphQuery to fetch parsed data", async () => {
+describe("GraphQL 查询", () => {
+    it("使用 graphQuery 获取解析后的数据", async () => {
         const queryClient = new QueryClient();
         const client = createClient(() => ({
             storefront: {
@@ -52,7 +61,7 @@ describe("graph queries", () => {
         expect(data).toEqual([{ id: 1 }, { id: 2 }]);
     });
 
-    it("gives priority to definition.client over options.client", async () => {
+    it("优先使用 definition.client 而不是 options.client", async () => {
         const queryClient = new QueryClient();
         const definitionClient = createClient(() => ({
             session: {
@@ -91,7 +100,7 @@ describe("graph queries", () => {
         });
     });
 
-    it("merges definition query defaults into graphQueryOptions", () => {
+    it("将 definition 的 query 默认值合并到 graphQueryOptions", () => {
         const client = createClient(() => ({
             session: {
                 revoke: {
@@ -118,7 +127,123 @@ describe("graph queries", () => {
         expect(options.staleTime).toBe(5000);
     });
 
-    it("keeps variable names in query keys to avoid collisions", () => {
+    it("将 initialData 包装为根结构并通过 select 转换数据", () => {
+        const client = createClient(() => ({
+            catalog: {
+                products: {
+                    nodes: [],
+                },
+            },
+        }));
+        const definition = defineGraphql<{
+            catalog: {
+                products: {
+                    nodes: Array<{ id: number; title: string }>;
+                };
+            };
+        }>()({
+            client,
+            parseKey: "catalog.products.nodes",
+            document: gql`
+                query {
+                    catalog {
+                        products {
+                            nodes {
+                                id
+                                title
+                            }
+                        }
+                    }
+                }
+            `,
+        });
+
+        const options = graphQueryOptions(definition, {
+            initialData: [
+                { id: 1, title: "initial" },
+                { id: 2, title: "data" },
+            ],
+            select: (data) => data.map((item) => item.title),
+        });
+
+        expect(options.initialData).toEqual({
+            catalog: {
+                products: {
+                    nodes: [
+                        { id: 1, title: "initial" },
+                        { id: 2, title: "data" },
+                    ],
+                },
+            },
+        });
+        expect(
+            options.select?.({
+                catalog: {
+                    products: {
+                        nodes: [
+                            { id: 1, title: "a" },
+                            { id: 2, title: "b" },
+                        ],
+                    },
+                },
+            })
+        ).toEqual(["a", "b"]);
+    });
+
+    it("在未传入 variables 时使用 definition 默认变量，并允许调用时覆盖", async () => {
+        const queryClient = new QueryClient();
+        const receivedVariables: Array<unknown> = [];
+        const client = createClient((_document, variables) => {
+            receivedVariables.push(variables);
+
+            return {
+                catalog: {
+                    product: {
+                        id: (variables as { id: number }).id,
+                    },
+                },
+            };
+        });
+        const definition = defineGraphql<
+            {
+                catalog: {
+                    product: {
+                        id: number;
+                    };
+                };
+            },
+            {
+                id: number;
+            }
+        >()({
+            client,
+            parseKey: "catalog.product",
+            variables: { id: 1 },
+            document: gql`
+                query ($id: Int!) {
+                    catalog {
+                        product(id: $id) {
+                            id
+                        }
+                    }
+                }
+            `,
+        });
+
+        const defaultData = await graphQuery(definition, {
+            queryClient,
+        } as never);
+        const overriddenData = await graphQuery(definition, {
+            queryClient,
+            variables: { id: 2 },
+        });
+
+        expect(defaultData).toEqual({ id: 1 });
+        expect(overriddenData).toEqual({ id: 2 });
+        expect(receivedVariables).toEqual([{ id: 1 }, { id: 2 }]);
+    });
+
+    it("在 query key 中保留变量名以避免冲突", () => {
         expect(getGraphQueryKey("catalog.product", { id: 1, mode: "full" })).not.toEqual(
             getGraphQueryKey("catalog.product", { page: 1, status: "full" })
         );
@@ -127,7 +252,7 @@ describe("graph queries", () => {
         );
     });
 
-    it("passes requestHeaders through without leaking parseKey", async () => {
+    it("透传 requestHeaders 且不泄漏 parseKey", async () => {
         const queryClient = new QueryClient();
         let receivedHeaders: unknown;
         const client = createClient((_document, _variables, requestHeaders) => {
@@ -167,7 +292,7 @@ describe("graph queries", () => {
         });
     });
 
-    it("adds x-graph-parse-key when provider debugParseKeyHeader is enabled", async () => {
+    it("当 provider 启用 debugParseKeyHeader 时添加 x-graph-parse-key", async () => {
         const queryClient = new QueryClient();
         let receivedHeaders: unknown;
         const providerClient = createClient((_document, variables, requestHeaders) => {
@@ -222,7 +347,7 @@ describe("graph queries", () => {
         });
     });
 
-    it("throws when graphQuery is missing every client source", async () => {
+    it("当 graphQuery 缺少所有 client 来源时抛错", async () => {
         const definition = defineGraphql<{ user: { profile: { id: number } } }>()({
             parseKey: "user.profile",
             document: gql`
@@ -243,7 +368,7 @@ describe("graph queries", () => {
         ).rejects.toThrow("GraphQL client is required");
     });
 
-    it("uses useGraphQuery inside QueryClientProvider", async () => {
+    it("在 QueryClientProvider 内使用 useGraphQuery", async () => {
         const queryClient = new QueryClient();
         const client = createClient((_document, variables) => ({
             catalog: {
@@ -286,7 +411,7 @@ describe("graph queries", () => {
         });
     });
 
-    it("uses provider client when options.client is omitted", async () => {
+    it("省略 options.client 时使用 provider 的 client", async () => {
         const queryClient = new QueryClient();
         const providerClient = createClient((_document, variables) => ({
             user: {
@@ -330,7 +455,7 @@ describe("graph queries", () => {
         });
     });
 
-    it("gives priority to options.client over provider client", async () => {
+    it("优先使用 options.client 而不是 provider 的 client", async () => {
         const queryClient = new QueryClient();
         const providerClient = createClient(() => ({
             user: {
@@ -382,7 +507,7 @@ describe("graph queries", () => {
         });
     });
 
-    it("throws in useGraphQuery when no client is available", () => {
+    it("当没有可用 client 时 useGraphQuery 抛错", () => {
         const queryClient = new QueryClient();
         const definition = defineGraphql<{ user: { profile: { id: number } } }>()({
             parseKey: "user.profile",
@@ -401,5 +526,44 @@ describe("graph queries", () => {
         );
 
         expect(() => renderHook(() => useGraphQuery(definition), { wrapper })).toThrow("GraphQL client is required");
+    });
+
+    it("使用 GraphqlQueryProvider 同时注入 QueryClient 和 GraphQLClient", async () => {
+        const queryClient = new QueryClient();
+        const client = createClient((_document, variables) => ({
+            catalog: {
+                product: {
+                    id: (variables as { id: number }).id,
+                    title: "combined-provider",
+                },
+            },
+        }));
+        const definition = defineGraphql<{ catalog: { product: { id: number; title: string } } }>()({
+            parseKey: "catalog.product",
+            document: gql`
+                query ($id: Int!) {
+                    catalog {
+                        product(id: $id) {
+                            id
+                            title
+                        }
+                    }
+                }
+            `,
+        });
+        const wrapper = ({ children }: React.PropsWithChildren) => (
+            <GraphqlQueryProvider client={client} queryClient={queryClient}>
+                {children}
+            </GraphqlQueryProvider>
+        );
+
+        const { result } = renderHook(() => useGraphQuery(definition, { variables: { id: 12 } }), { wrapper });
+
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+        expect(result.current.data).toEqual({
+            id: 12,
+            title: "combined-provider",
+        });
     });
 });

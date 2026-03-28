@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { gql } from "graphql-request";
-import { inferGraphParseKey } from "./infer";
+import { inferGraphParseKey } from "../infer";
 
-describe("inferGraphParseKey", () => {
-    it("infers a single nested path", () => {
+describe("inferGraphParseKey 推导", () => {
+    it("可以推导单一路径的嵌套字段", () => {
         expect(
             inferGraphParseKey(gql`
                 query {
@@ -19,7 +19,7 @@ describe("inferGraphParseKey", () => {
         ).toBe("store.inventory.nodes");
     });
 
-    it("stops at the branching object", () => {
+    it("在分叉对象处停止推导", () => {
         expect(
             inferGraphParseKey(gql`
                 query {
@@ -36,7 +36,7 @@ describe("inferGraphParseKey", () => {
         ).toBe("catalog.products");
     });
 
-    it("uses aliases when present", () => {
+    it("存在别名时使用别名", () => {
         expect(
             inferGraphParseKey(gql`
                 query {
@@ -50,7 +50,7 @@ describe("inferGraphParseKey", () => {
         ).toBe("storefrontAlias.featuredAlias");
     });
 
-    it("throws when the document has multiple top-level fields", () => {
+    it("当 document 含有多个顶层字段时抛错", () => {
         expect(() =>
             inferGraphParseKey(gql`
                 query {
@@ -65,7 +65,7 @@ describe("inferGraphParseKey", () => {
         ).toThrow("exactly one top-level field");
     });
 
-    it("throws when the document does not contain an operation", () => {
+    it("当 document 不包含操作定义时抛错", () => {
         expect(() =>
             inferGraphParseKey(gql`
                 fragment UserProfile on User {

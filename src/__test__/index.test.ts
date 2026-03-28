@@ -1,11 +1,16 @@
 import { describe, expect, it } from "bun:test";
-import * as library from "./index";
+import * as library from "../index";
 
-describe("public exports", () => {
-    it("exposes the documented runtime API from the root entry", () => {
+describe("公开导出", () => {
+    it("从根入口暴露文档中的运行时 API", () => {
         expect(library.defineGraphql).toBeFunction();
         expect(library.GraphqlClientProvider).toBeFunction();
+        expect(library.GraphqlQueryProvider).toBeFunction();
+        expect(library.graphInfiniteQueryOptions).toBeFunction();
+        expect(library.graphMutation).toBeFunction();
+        expect(library.useGraphMutation).toBeFunction();
         expect(library.useGraphQuery).toBeFunction();
+        expect(library.useInfiniteGraphQuery).toBeFunction();
         expect(library.useGraphqlClient).toBeFunction();
         expect(library.graphQuery).toBeFunction();
         expect(library.graphQueryOptions).toBeFunction();

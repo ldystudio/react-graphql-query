@@ -2,6 +2,7 @@ import type { RequestOptions } from "graphql-request";
 import type { GraphqlDefinition } from "./definition";
 
 type GraphParseKeySource = string | Pick<GraphqlDefinition<unknown>, "parseKey">;
+type GraphQueryKeySource = GraphParseKeySource | { key?: readonly unknown[] };
 
 export function getGraphParseKey(input: GraphParseKeySource) {
     return typeof input === "string" ? input : input.parseKey;
@@ -18,14 +19,22 @@ export function getParsePath(input: GraphParseKeySource) {
     return getGraphParseKey(input).split(".").filter(Boolean);
 }
 
-export function getGraphQueryKey(input: GraphParseKeySource, variables?: RequestOptions["variables"]) {
-    const path = getParsePath(input);
-
-    if (variables == null) {
-        return path;
+function getGraphBaseKey(input: GraphQueryKeySource) {
+    if (typeof input === "object" && input !== null && "key" in input && Array.isArray(input.key)) {
+        return [...input.key];
     }
 
-    return [...path, variables];
+    return getParsePath(input as GraphParseKeySource);
+}
+
+export function getGraphQueryKey(input: GraphQueryKeySource, variables?: RequestOptions["variables"]) {
+    const baseKey = getGraphBaseKey(input);
+
+    if (variables == null) {
+        return baseKey;
+    }
+
+    return [...baseKey, variables];
 }
 
 export function getGraphLogKey(input?: unknown) {
