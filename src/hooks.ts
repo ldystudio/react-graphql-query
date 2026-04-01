@@ -79,6 +79,7 @@ export function useGraphMutation<
 
     return useMutation(
         graphMutationOptionsWithRuntime(definition, withContextClient(definition, options, context.client), {
+            debugParseKeyHeader: context.debugParseKeyHeader,
             queryClient,
         }),
         queryClient

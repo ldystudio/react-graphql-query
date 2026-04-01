@@ -1,6 +1,34 @@
 import { describe, expect, it } from "bun:test";
 import { gql } from "graphql-request";
-import { inferGraphParseKey } from "../infer";
+import { inferGraphParseKey, inferGraphqlOperationKind } from "../infer";
+
+describe("inferGraphqlOperationKind 推导", () => {
+    it("可以识别 query", () => {
+        expect(
+            inferGraphqlOperationKind(gql`
+                query {
+                    viewer {
+                        id
+                    }
+                }
+            `)
+        ).toBe("Query");
+    });
+
+    it("可以识别 mutation", () => {
+        expect(
+            inferGraphqlOperationKind(gql`
+                mutation {
+                    session {
+                        revoke {
+                            ok
+                        }
+                    }
+                }
+            `)
+        ).toBe("Mutation");
+    });
+});
 
 describe("inferGraphParseKey 推导", () => {
     it("可以推导单一路径的嵌套字段", () => {

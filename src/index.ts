@@ -13,6 +13,7 @@ export type {
     GraphqlDefinitionDocument,
     GraphqlDefinitionInput,
     GraphqlDefinitionKey,
+    GraphqlDefinitionKind,
     GraphqlDefinitionParseKey,
     GraphqlDefinitionRoot,
     GraphqlDefinitionVariables,
@@ -22,6 +23,7 @@ export type {
 } from "./definition";
 export { defineGraphql } from "./definition";
 export { useGraphMutation, useGraphQuery, useInfiniteGraphQuery } from "./hooks";
+export type { GraphqlOperationKind } from "./infer";
 export { inferGraphParseKey } from "./infer";
 export { graphInfiniteQueryOptions } from "./infinite";
 export {

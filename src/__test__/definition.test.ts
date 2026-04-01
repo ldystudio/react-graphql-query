@@ -17,6 +17,7 @@ describe("defineGraphql 定义", () => {
             `,
         });
 
+        expect(definition.kind).toBe("Mutation");
         expect(definition.parseKey).toBe("session.revoke");
     });
 
@@ -35,6 +36,7 @@ describe("defineGraphql 定义", () => {
             `,
         });
 
+        expect(definition.kind).toBe("Query");
         expect(definition.parseKey).toBe("catalog.products.nodes");
     });
 
@@ -64,6 +66,7 @@ describe("defineGraphql 定义", () => {
             key: ["catalog", "product-detail"],
         });
 
+        expect(definition.kind).toBe("Query");
         expect(definition.parseKey).toBe("catalog.product");
         expect(definition.key).toEqual(["catalog", "product-detail"]);
     });
@@ -94,6 +97,7 @@ describe("defineGraphql 定义", () => {
             document,
         });
 
+        expect(definition.kind).toBe("Query");
         expect(definition.parseKey).toBe("system.release");
     });
 });

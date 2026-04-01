@@ -1,7 +1,7 @@
 import type { TypedDocumentNode } from "@graphql-typed-document-node/core";
 import type { QueryKey } from "@tanstack/react-query";
 import type { GraphQLClient, RequestDocument, Variables } from "graphql-request";
-import { inferGraphParseKey } from "./infer";
+import { type GraphqlOperationKind, inferGraphParseKey, inferGraphqlOperationKind } from "./infer";
 
 export type GraphqlVariables = Variables;
 export type GraphqlDocument<TData = unknown, TVariables extends GraphqlVariables = GraphqlVariables> =
@@ -103,6 +103,7 @@ export type GraphqlDefinition<
 > = Omit<GraphqlDefinitionInput<TDocument, ParseKey, TKey, TVariables>, "parseKey"> & {
     readonly __rootType: TRoot;
     readonly __variablesType: TVariables;
+    readonly kind: GraphqlOperationKind;
     readonly parseKey: ParseKey;
 };
 
@@ -131,6 +132,11 @@ export type GraphqlDefinitionKey<TDefinition> = TDefinition extends {
 }
     ? TKey
     : undefined;
+export type GraphqlDefinitionKind<TDefinition> = TDefinition extends {
+    kind: infer TKind extends GraphqlOperationKind;
+}
+    ? TKind
+    : never;
 
 function createGraphqlDefinition<
     TRoot,
@@ -139,6 +145,7 @@ function createGraphqlDefinition<
 >(definition: TDefinition) {
     return {
         ...definition,
+        kind: inferGraphqlOperationKind(definition.document),
         parseKey: definition.parseKey ?? inferGraphParseKey(definition.document),
         __rootType: undefined as unknown as TRoot,
         __variablesType: undefined as unknown as TVariables,

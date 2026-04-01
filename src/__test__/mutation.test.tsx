@@ -267,6 +267,68 @@ describe("GraphQL 变更", () => {
         });
     });
 
+    it("当 provider 启用 debugParseKeyHeader 时为 useGraphMutation 添加 x-graph-parse-key", async () => {
+        const queryClient = new QueryClient();
+        let receivedHeaders: unknown;
+        const client = createClient((_document, variables, requestHeaders) => {
+            receivedHeaders = requestHeaders;
+
+            return {
+                catalog: {
+                    updateProduct: {
+                        id: (variables as { id: number }).id,
+                        title: "updated",
+                    },
+                },
+            };
+        });
+        const definition = defineGraphql<{
+            catalog: {
+                updateProduct: {
+                    id: number;
+                    title: string;
+                };
+            };
+        }>()({
+            parseKey: "catalog.updateProduct",
+            document: gql`
+                mutation ($id: Int!) {
+                    catalog {
+                        updateProduct(id: $id) {
+                            id
+                            title
+                        }
+                    }
+                }
+            `,
+        });
+        const wrapper = ({ children }: React.PropsWithChildren) => (
+            <GraphqlQueryProvider client={client} queryClient={queryClient} debugParseKeyHeader>
+                {children}
+            </GraphqlQueryProvider>
+        );
+        const mutation = renderHook(
+            () =>
+                useGraphMutation(definition, {
+                    requestHeaders: {
+                        authorization: "Bearer token",
+                    },
+                }),
+            { wrapper }
+        );
+
+        act(() => {
+            mutation.result.current.mutate({ id: 7 });
+        });
+
+        await waitFor(() =>
+            expect(receivedHeaders).toEqual({
+                authorization: "Bearer token",
+                "x-graph-parse-key": "catalog.updateProduct",
+            })
+        );
+    });
+
     it("支持通过 provider 的 queryClient 进行乐观更新和回滚", async () => {
         const queryClient = new QueryClient();
         const productList = defineGraphql<{

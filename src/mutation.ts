@@ -1,7 +1,13 @@
 import type { GraphQLClient, RequestOptions } from "graphql-request";
 import type { GraphqlDefinitionDocument, GraphqlDefinitionVariables } from "./definition";
 import { getGraphQueryKey } from "./key";
-import { getGraphClient, requestGraphRootData, resolveGraphVariables, selectGraphData } from "./runtime";
+import {
+    getGraphClient,
+    requestGraphRootData,
+    resolveGraphVariables,
+    selectGraphData,
+    withDebugParseKeyHeader,
+} from "./runtime";
 import type {
     AnyGraphqlDefinition,
     GraphMutationContext,
@@ -22,6 +28,7 @@ type GraphMutationRuntimeContext<TDefinition extends AnyGraphqlDefinition, TData
 };
 
 type GraphMutationRuntimeOptions<TDefinition extends AnyGraphqlDefinition> = {
+    debugParseKeyHeader?: boolean;
     queryClient: GraphMutationContext<TDefinition>["queryClient"];
 };
 
@@ -30,7 +37,8 @@ function resolveGraphMutationContext<
     TData = GraphQueryData<TDefinition>,
 >(
     definition: TDefinition,
-    options?: Pick<GraphMutationOptions<TDefinition, TData>, "client" | "requestHeaders" | "select" | "variables">
+    options?: Pick<GraphMutationOptions<TDefinition, TData>, "client" | "requestHeaders" | "select" | "variables">,
+    runtime?: Pick<GraphMutationRuntimeOptions<TDefinition>, "debugParseKeyHeader">
 ): GraphMutationRuntimeContext<TDefinition, TData> {
     const { client, requestHeaders, select, variables } = options ?? {};
 
@@ -38,7 +46,11 @@ function resolveGraphMutationContext<
         client: getGraphClient(definition, { client }),
         definition,
         document: definition.document as GraphqlDefinitionDocument<TDefinition>,
-        requestHeaders,
+        requestHeaders: withDebugParseKeyHeader(
+            requestHeaders,
+            definition.parseKey,
+            runtime?.debugParseKeyHeader ?? false
+        ),
         select,
         variables: resolveGraphVariables(
             definition.variables as GraphqlDefinitionVariables<TDefinition> | undefined,
@@ -58,7 +70,7 @@ export function graphMutationOptionsWithRuntime<
 ): GraphMutationOptionsResult<TDefinition, TOnMutateResult, TData> {
     const { client, onError, onMutate, onSettled, onSuccess, requestHeaders, select, ...mutationOptions } =
         options ?? {};
-    const context = resolveGraphMutationContext(definition, { client, requestHeaders, select });
+    const context = resolveGraphMutationContext(definition, { client, requestHeaders, select }, runtime);
     const graphContext: GraphMutationContext<TDefinition> = {
         client: context.client,
         definition,

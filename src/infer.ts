@@ -2,6 +2,8 @@ import type { FieldNode, OperationDefinitionNode, SelectionSetNode } from "graph
 import { Kind, parse, print } from "graphql";
 import type { RequestOptions } from "graphql-request";
 
+export type GraphqlOperationKind = "Query" | "Mutation" | "Subscription";
+
 function getDocumentText(document: RequestOptions["document"]) {
     return typeof document === "string" ? document : print(document as Parameters<typeof print>[0]);
 }
@@ -24,6 +26,22 @@ function getOperationDefinition(document: ReturnType<typeof parse>) {
     }
 
     return operation;
+}
+
+export function inferGraphqlOperationKind(document: RequestOptions["document"]): GraphqlOperationKind {
+    const parsed = parse(getDocumentText(document));
+    const operation = getOperationDefinition(parsed);
+
+    switch (operation.operation) {
+        case "query":
+            return "Query";
+        case "mutation":
+            return "Mutation";
+        case "subscription":
+            return "Subscription";
+    }
+
+    throw new Error(`Failed to infer operation kind: unsupported operation "${operation.operation}"`);
 }
 
 export function inferGraphParseKey(document: RequestOptions["document"]) {
