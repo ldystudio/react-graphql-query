@@ -44,6 +44,25 @@ const productListDefinition = defineGraphql({
     document: productListDocument,
 });
 
+const viewerTagsDocument = gql`
+    query ViewerTags {
+        viewer {
+            tags
+        }
+    }
+` as unknown as TypedDocumentNode<
+    {
+        viewer: {
+            tags: string[];
+        };
+    },
+    Record<string, never>
+>;
+
+const viewerTagsDefinition = defineGraphql<{ viewer: { tags: string[] } }>()({
+    document: viewerTagsDocument,
+});
+
 const typeAssertions = {
     graphQueryData: true as Assert<Equal<GraphQueryData<typeof productListDefinition>, ProductNode[]>>,
     graphQueryItem: true as Assert<Equal<GraphQueryItem<typeof productListDefinition>, ProductNode>>,
@@ -53,11 +72,14 @@ const typeAssertions = {
     graphDocumentItem: true as Assert<
         Equal<GraphDocumentItem<typeof productListDocument, "catalog.products.nodes">, ProductNode>
     >,
+    inferredScalarArrayParseKey: true as Assert<Equal<typeof viewerTagsDefinition.parseKey, "viewer">>,
+    inferredScalarArrayData: true as Assert<Equal<GraphQueryData<typeof viewerTagsDefinition>, { tags: string[] }>>,
 };
 
 describe("类型工具", () => {
     it("暴露可用于 parseKey 解析后的数据与数组元素类型", () => {
         expect(productListDefinition.parseKey).toBe("catalog.products.nodes");
+        expect(viewerTagsDefinition.parseKey).toBe("viewer");
         expect(typeAssertions).toBeDefined();
     });
 });

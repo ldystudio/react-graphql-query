@@ -100,4 +100,19 @@ describe("defineGraphql 定义", () => {
         expect(definition.kind).toBe("Query");
         expect(definition.parseKey).toBe("system.release");
     });
+
+    it("泛型工厂在标量数组叶子场景保持与运行时一致", () => {
+        const definition = defineGraphql<{ viewer: { tags: string[] } }>()({
+            document: gql`
+                query {
+                    viewer {
+                        tags
+                    }
+                }
+            `,
+        });
+
+        expect(definition.kind).toBe("Query");
+        expect(definition.parseKey).toBe("viewer");
+    });
 });

@@ -64,6 +64,18 @@ describe("inferGraphParseKey 推导", () => {
         ).toBe("catalog.products");
     });
 
+    it("遇到标量数组叶子时停在父节点", () => {
+        expect(
+            inferGraphParseKey(gql`
+                query {
+                    viewer {
+                        tags
+                    }
+                }
+            `)
+        ).toBe("viewer");
+    });
+
     it("存在别名时使用别名", () => {
         expect(
             inferGraphParseKey(gql`

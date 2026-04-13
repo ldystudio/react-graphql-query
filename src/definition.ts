@@ -40,10 +40,7 @@ type GraphqlSelectionValue<T> = T extends readonly (infer Item)[]
     ? GraphqlSelectionValue<Item>
     : Exclude<T, null | undefined>;
 
-type GraphqlNonNullableValue<T> = Exclude<T, null | undefined>;
 type GraphqlObjectValue<T> = Extract<GraphqlSelectionValue<T>, object>;
-type GraphqlArrayElementValue<T> =
-    GraphqlNonNullableValue<T> extends readonly (infer Item)[] ? GraphqlSelectionValue<Item> : never;
 type GraphqlObjectKey<T extends object> = Exclude<keyof T & string, GraphqlMetaKey>;
 
 type GraphqlSingleKey<T extends object, Key extends GraphqlObjectKey<T> = GraphqlObjectKey<T>> = Key extends Key
@@ -52,38 +49,21 @@ type GraphqlSingleKey<T extends object, Key extends GraphqlObjectKey<T> = Graphq
         : never
     : never;
 
-type GraphqlHasSingleKey<T extends object> = [GraphqlSingleKey<T>] extends [never] ? false : true;
-
-type GraphqlChildKind<T> =
-    GraphqlNonNullableValue<T> extends readonly unknown[]
-        ? [GraphqlObjectValue<GraphqlArrayElementValue<T>>] extends [never]
-            ? "array-leaf"
-            : GraphqlHasSingleKey<GraphqlObjectValue<GraphqlArrayElementValue<T>>> extends true
-              ? "opaque-array"
-              : "array-leaf"
-        : [GraphqlObjectValue<T>] extends [never]
-          ? "scalar"
-          : "object";
-
 type GraphqlInferParseKeyTail<T> = [GraphqlObjectValue<T>] extends [never]
     ? ""
     : [GraphqlSingleKey<GraphqlObjectValue<T>>] extends [infer Key]
       ? [Key] extends [never]
           ? ""
           : [Key] extends [string]
-            ? GraphqlChildKind<GraphqlObjectValue<T>[Key & keyof GraphqlObjectValue<T>]> extends infer Kind
-                ? Kind extends "object"
-                    ? GraphqlInferParseKeyTail<
-                          GraphqlObjectValue<T>[Key & keyof GraphqlObjectValue<T>]
-                      > extends infer Tail extends string
-                        ? Tail extends ""
-                            ? Key
-                            : `${Key}.${Tail}`
-                        : never
-                    : Kind extends "array-leaf"
+            ? [GraphqlObjectValue<GraphqlObjectValue<T>[Key & keyof GraphqlObjectValue<T>]>] extends [never]
+                ? ""
+                : GraphqlInferParseKeyTail<
+                        GraphqlObjectValue<T>[Key & keyof GraphqlObjectValue<T>]
+                    > extends infer Tail extends string
+                  ? Tail extends ""
                       ? Key
-                      : ""
-                : never
+                      : `${Key}.${Tail}`
+                  : never
             : ""
       : "";
 
