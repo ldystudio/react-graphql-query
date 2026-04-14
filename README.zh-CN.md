@@ -25,6 +25,12 @@ npm install @ldystudio/react-graphql-query @tanstack/react-query graphql graphql
 - `@tanstack/react-query >= 5`
 - `graphql-request >= 6.1.0`
 
+如果你还想使用库里自带的 GraphQL codegen 辅助能力，应用项目里还需要安装：
+
+```bash
+npm install -D @graphql-codegen/cli @graphql-codegen/client-preset graphql
+```
+
 ## 快速开始
 
 ```tsx
@@ -88,6 +94,101 @@ export function App() {
 
 如果你的应用主要访问同一个 GraphQL endpoint，推荐在组件树外层包一层 `GraphqlQueryProvider`，这样组件里通常不需要重复传 `client`，Hook 也能自动读取共享的 `QueryClient`。
 
+## GraphQL Codegen
+
+这个包也带了一套轻量 codegen 流程，适合需要这些能力的项目：
+
+- 每个 target 生成一个扁平 `.ts` 文件
+- 基于 `client` preset，最终按 `document: Gen.SomeDocument` 使用
+- 支持可选的 operation type overrides
+- 支持可选的最终源码 transform 和 format 命令
+
+先在应用项目里加脚本：
+
+```json
+{
+    "scripts": {
+        "codegen": "react-graphql-query-codegen --config graphql.codegen.ts"
+    }
+}
+```
+
+然后创建 `graphql.codegen.ts`：
+
+```ts
+import { defineGraphqlCodegenProject } from "@ldystudio/react-graphql-query/codegen";
+
+const API_URL = "https://example.com/graphql/v1"
+
+export default defineGraphqlCodegenProject({
+    targets: {
+        main: {
+            schema: API_URL,
+            documents: ["src/service/gql/main.graphql"],
+            output: "src/service/__generated__/main.ts",
+            config: {
+                defaultScalarType: "unknown",
+            },
+        },
+    },
+    format: {
+        command: ["bunx", "biome", "check", "--write"],
+    },
+});
+```
+
+执行：
+
+```bash
+npm run codegen
+```
+
+生成后的接入通常长这样：
+
+```ts
+import * as Gen from "@/service/__generated__/main";
+import { defineGraphql } from "@ldystudio/react-graphql-query";
+
+export const PRODUCT_DETAIL = defineGraphql<Gen.ProductDetailQuery, Gen.ProductDetailVariables>()({
+    document: Gen.ProductDetailDocument,
+    parseKey: "catalog.product",
+});
+```
+
+### Operation Type Overrides
+
+如果某个 operation 的生成类型里，有一段嵌套路径需要手动替换，可以用 `overrides.operationTypes`：
+
+```ts
+import { defineGraphqlCodegenProject } from "@ldystudio/react-graphql-query/codegen";
+
+export default defineGraphqlCodegenProject({
+    targets: {
+        main: {
+            schema: "https://example.com/graphql",
+            documents: ["src/service/gql/main.graphql"],
+            output: "src/service/__generated__/main.ts",
+            overrides: {
+                operationTypes: [
+                    {
+                        operation: "ProductDetailQuery",
+                        path: "catalog.product",
+                        type: "Product.Detail",
+                    },
+                ],
+            },
+        },
+    },
+});
+```
+
+说明：
+
+- overrides 执行顺序是 `prune` 之后、`transformSource` 之前
+- 规则里指向“当前 target 不存在的 operation”会被忽略
+- 如果 operation 存在，但 `path` 没命中，会抛 `[codegen-overrides]` 错误
+- CLI 会故意从应用项目侧加载 `@graphql-codegen/cli`，而不是从本包内部加载，避免 `graphql` 多实例问题
+
 ## 核心 API
 
 ### `defineGraphql`
@@ -121,7 +222,7 @@ const PRODUCT_DETAIL = defineGraphql<{
 ```ts
 import { ProductDocument } from "./__generated__/graphql";
 
-const PRODUCT_DETAIL = defineGraphql({
+const PRODUCT_DETAIL = defineGraphql()({
     document: ProductDocument,
     parseKey: "catalog.product",
     key: ["catalog", "product-detail"],
@@ -414,7 +515,7 @@ getGraphQueryKey("catalog.product", { id: 7 });
 如果你希望缓存身份更显式，可以在 definition 上提供 `key`：
 
 ```ts
-const PRODUCT_LIST = defineGraphql({
+const PRODUCT_LIST = defineGraphql()({
     document: ProductListDocument,
     parseKey: "catalog.products.nodes",
     key: ["catalog", "product-list"],

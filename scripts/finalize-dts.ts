@@ -1,39 +1,114 @@
+import { mkdir, readdir, rename } from "node:fs/promises";
+import { dirname, join, relative } from "node:path";
 import { $ } from "bun";
 
 const DIST_DIR = "dist";
 const DTS_DIR = "dist-types";
-const TARGET_FILE = `${DIST_DIR}/index.d.ts`;
 const EMPTY_DTS = "export { };";
-const PREFERRED_ENTRY_FILE = "index.d.ts";
 
-const dtsFiles = Array.from(new Bun.Glob("*.d.ts").scanSync({ cwd: DTS_DIR }));
+const entryRenames = [
+    ["index2.d.ts", "index.d.ts"],
+    ["codegen/index2.d.ts", "codegen/index.d.ts"],
+    ["codegen/cli2.d.ts", "codegen/cli.d.ts"],
+] as const;
 
+const relocatedArtifacts = [
+    {
+        pattern: /^prune-[^.]+\.js$/,
+        targetPath: "codegen/shared.js",
+        rewriteTargets: [
+            ["codegen/index.js", (fileName: string) => `../${fileName}`, "./shared.js"],
+            ["codegen/cli.js", (fileName: string) => `../${fileName}`, "./shared.js"],
+        ],
+    },
+    {
+        pattern: /^types-[^.]+\.d\.ts$/,
+        targetPath: "codegen/types.d.ts",
+        rewriteTargets: [
+            ["codegen/index.d.ts", (fileName: string) => `../${fileName.replace(/\.d\.ts$/, ".js")}`, "./types.js"],
+            ["codegen/cli.d.ts", (fileName: string) => `../${fileName.replace(/\.d\.ts$/, ".js")}`, "./types.js"],
+        ],
+    },
+] as const;
+
+async function collectDeclarationFiles(dirPath: string): Promise<string[]> {
+    const entries = await readdir(dirPath, { withFileTypes: true });
+    const files = await Promise.all(
+        entries.map(async (entry) => {
+            const nextPath = join(dirPath, entry.name);
+            if (entry.isDirectory()) {
+                return collectDeclarationFiles(nextPath);
+            }
+
+            return entry.name.endsWith(".d.ts") ? [nextPath] : [];
+        })
+    );
+
+    return files.flat();
+}
+
+async function rewriteFile(filePath: string, rewrite: (sourceText: string) => string) {
+    const file = Bun.file(filePath);
+    const sourceText = await file.text();
+    const nextSourceText = rewrite(sourceText);
+
+    if (nextSourceText !== sourceText) {
+        await Bun.write(filePath, nextSourceText);
+    }
+}
+
+async function renameIfExists(from: string, to: string) {
+    const fromPath = join(DIST_DIR, from);
+
+    if (!(await Bun.file(fromPath).exists())) {
+        return false;
+    }
+
+    const toPath = join(DIST_DIR, to);
+    await mkdir(dirname(toPath), { recursive: true });
+    await rename(fromPath, toPath);
+
+    return true;
+}
+
+const dtsFiles = await collectDeclarationFiles(DTS_DIR);
 if (dtsFiles.length === 0) {
     throw new Error("No declaration files were generated.");
 }
 
-const bundledFiles: string[] = [];
+for (const sourcePath of dtsFiles) {
+    const content = (await Bun.file(sourcePath).text()).trim();
+    if (content === EMPTY_DTS) {
+        continue;
+    }
 
-for (const file of dtsFiles) {
-    const content = (await Bun.file(`${DTS_DIR}/${file}`).text()).trim();
+    const relativePath = relative(DTS_DIR, sourcePath);
+    const targetPath = join(DIST_DIR, relativePath);
 
-    if (content !== EMPTY_DTS) {
-        bundledFiles.push(file);
+    await mkdir(dirname(targetPath), { recursive: true });
+    await Bun.write(targetPath, Bun.file(sourcePath));
+}
+
+for (const [from, to] of entryRenames) {
+    await renameIfExists(from, to);
+}
+
+const distEntries = await readdir(DIST_DIR, { withFileTypes: true });
+
+for (const artifact of relocatedArtifacts) {
+    const matchedEntry = distEntries.find((entry) => entry.isFile() && artifact.pattern.test(entry.name));
+
+    if (!matchedEntry) {
+        continue;
+    }
+
+    await renameIfExists(matchedEntry.name, artifact.targetPath);
+
+    for (const [filePath, fromBuilder, toValue] of artifact.rewriteTargets) {
+        await rewriteFile(join(DIST_DIR, filePath), (sourceText) =>
+            sourceText.replace(fromBuilder(matchedEntry.name), toValue)
+        );
     }
 }
 
-const targetSource =
-    bundledFiles.find((file) => file === PREFERRED_ENTRY_FILE) ??
-    (bundledFiles.length === 1 ? bundledFiles[0] : undefined);
-
-if (!targetSource) {
-    throw new Error(
-        `Expected a single bundled declaration file or a preferred ${PREFERRED_ENTRY_FILE} entry, received: ${
-            bundledFiles.join(", ") || "none"
-        }`
-    );
-}
-
-await $`mkdir -p ${DIST_DIR}`;
-await Bun.write(TARGET_FILE, Bun.file(`${DTS_DIR}/${targetSource}`));
 await $`rm -rf ${DTS_DIR}`;

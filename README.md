@@ -25,6 +25,12 @@ Requirements:
 - `@tanstack/react-query >= 5`
 - `graphql-request >= 6.1.0`
 
+If you want to use the packaged GraphQL codegen helpers as well, install these in your app project:
+
+```bash
+npm install -D @graphql-codegen/cli @graphql-codegen/client-preset graphql
+```
+
 ## Quick Start
 
 ```tsx
@@ -88,6 +94,101 @@ In this example, `query.data` is inferred as `Array<{ id: number; title: string 
 
 If your app mainly talks to a single GraphQL endpoint, wrap the tree with `GraphqlQueryProvider` so components usually do not need to pass `client` repeatedly, and hooks can also read the shared `QueryClient` automatically.
 
+## GraphQL Codegen
+
+The package also ships a small codegen pipeline for projects that want:
+
+- one generated file per target
+- `client` preset output rewritten to `document: Gen.SomeDocument`
+- optional operation-type overrides
+- optional final source transforms and format commands
+
+Add a script in your app project:
+
+```json
+{
+    "scripts": {
+        "codegen": "react-graphql-query-codegen --config graphql.codegen.ts"
+    }
+}
+```
+
+Then create `graphql.codegen.ts`:
+
+```ts
+import { defineGraphqlCodegenProject } from "@ldystudio/react-graphql-query/codegen";
+
+const API_URL = "https://example.com/graphql/v1"
+
+export default defineGraphqlCodegenProject({
+    targets: {
+        main: {
+            schema: API_URL,
+            documents: ["src/service/gql/main.graphql"],
+            output: "src/service/__generated__/main.ts",
+            config: {
+                defaultScalarType: "unknown",
+            },
+        },
+    },
+    format: {
+        command: ["bunx", "biome", "check", "--write"],
+    },
+});
+```
+
+Run:
+
+```bash
+npm run codegen
+```
+
+Generated usage usually looks like:
+
+```ts
+import * as Gen from "@/service/__generated__/main";
+import { defineGraphql } from "@ldystudio/react-graphql-query";
+
+export const PRODUCT_DETAIL = defineGraphql<Gen.ProductDetailQuery, Gen.ProductDetailVariables>()({
+    parseKey: "catalog.product",
+    document: Gen.ProductDetailDocument,
+});
+```
+
+### Operation Type Overrides
+
+If a generated operation type needs a manual replacement at a nested path, use `overrides.operationTypes`:
+
+```ts
+import { defineGraphqlCodegenProject } from "@ldystudio/react-graphql-query/codegen";
+
+export default defineGraphqlCodegenProject({
+    targets: {
+        main: {
+            schema: "https://example.com/graphql",
+            documents: ["src/service/gql/main.graphql"],
+            output: "src/service/__generated__/main.ts",
+            overrides: {
+                operationTypes: [
+                    {
+                        operation: "ProductDetailQuery",
+                        path: "catalog.product",
+                        type: "Product.Detail",
+                    },
+                ],
+            },
+        },
+    },
+});
+```
+
+Notes:
+
+- overrides run after prune and before `transformSource`
+- rules that target operations missing from the current target are ignored
+- if the operation exists but the `path` does not match, codegen throws a `[codegen-overrides]` error
+- the CLI intentionally loads `@graphql-codegen/cli` from the app project, not from this package, to avoid GraphQL multi-instance issues
+
 ## Core API
 
 ### `defineGraphql`
@@ -121,7 +222,7 @@ It also accepts a `TypedDocumentNode` directly, which lets the library infer bot
 ```ts
 import { ProductDocument } from "./__generated__/graphql";
 
-const PRODUCT_DETAIL = defineGraphql({
+const PRODUCT_DETAIL = defineGraphql()({
     document: ProductDocument,
     parseKey: "catalog.product",
     key: ["catalog", "product-detail"],
@@ -414,7 +515,7 @@ Keeping the full variables object avoids collisions between requests that happen
 If you need a more explicit cache identity, provide `key` on the definition:
 
 ```ts
-const PRODUCT_LIST = defineGraphql({
+const PRODUCT_LIST = defineGraphql()({
     document: ProductListDocument,
     parseKey: "catalog.products.nodes",
     key: ["catalog", "product-list"],
