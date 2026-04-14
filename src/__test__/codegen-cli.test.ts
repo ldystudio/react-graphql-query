@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadProjectCodegen, runFormatCommand } from "../codegen/cli";
+import { isDirectExecutionTarget, loadProjectCodegen, runFormatCommand } from "../codegen/cli";
 import type { GraphqlCodegenProjectConfig } from "../codegen/types";
 
 const tempDirs: string[] = [];
@@ -74,5 +74,18 @@ describe("codegen cli helpers", () => {
         await expect(runFormatCommand(projectConfig, ["src/main.ts"])).rejects.toThrow(
             "format command failed with exit code 2"
         );
+    });
+
+    it("通过 bin symlink 执行时仍能识别为直接执行", async () => {
+        const projectRoot = await createTempDir();
+        const realCliPath = join(projectRoot, "dist/codegen/cli.js");
+        const symlinkCliPath = join(projectRoot, "node_modules/.bin/react-graphql-query-codegen");
+
+        await mkdir(join(projectRoot, "dist/codegen"), { recursive: true });
+        await mkdir(join(projectRoot, "node_modules/.bin"), { recursive: true });
+        await writeFile(realCliPath, 'console.log("cli");\n');
+        await symlink(realCliPath, symlinkCliPath);
+
+        expect(isDirectExecutionTarget(symlinkCliPath, realCliPath)).toBe(true);
     });
 });

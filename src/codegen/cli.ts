@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -92,14 +93,16 @@ export async function main() {
     );
 }
 
-function isDirectExecution() {
-    const entryPath = process.argv[1];
-
+export function isDirectExecutionTarget(entryPath: string | undefined, modulePath: string) {
     if (!entryPath) {
         return false;
     }
 
-    return resolve(entryPath) === fileURLToPath(import.meta.url);
+    return realpathSync(resolve(entryPath)) === realpathSync(modulePath);
+}
+
+function isDirectExecution() {
+    return isDirectExecutionTarget(process.argv[1], fileURLToPath(import.meta.url));
 }
 
 if (isDirectExecution()) {
