@@ -100,6 +100,7 @@ The package also ships a small codegen pipeline for projects that want:
 
 - one generated file per target
 - `client` preset output rewritten to `document: Gen.SomeDocument`
+- optional `defineGraphql` definition files generated from operation documents
 - optional operation-type overrides
 - optional final source transforms and format commands
 
@@ -126,6 +127,9 @@ export default defineGraphqlCodegenProject({
             schema: API_URL,
             documents: ["src/service/gql/main.graphql"],
             output: "src/service/__generated__/main.ts",
+            definitions: {
+                output: "src/service/gql/main.gql.ts",
+            },
             config: {
                 defaultScalarType: "unknown",
             },
@@ -143,6 +147,18 @@ Run:
 npm run codegen
 ```
 
+## Examples
+
+The [`examples/codegen`](./examples/codegen) directory contains an anonymized GraphQL codegen setup:
+
+- [`config.ts`](./examples/codegen/config.ts): multi-target codegen config with `definitions.output`
+- [`overrides.ts`](./examples/codegen/overrides.ts): placeholder operation type override rules
+- [`GENERATED_STRUCTURE.md`](./examples/codegen/GENERATED_STRUCTURE.md): expected generated file structure and wrapper examples
+
+All examples use placeholder endpoints, operation names, and field paths.
+
+## Generated Usage
+
 Generated usage usually looks like:
 
 ```ts
@@ -153,6 +169,29 @@ export const PRODUCT_DETAIL = defineGraphql<Gen.ProductDetailQuery, Gen.ProductD
     parseKey: "catalog.product",
     document: Gen.ProductDetailDocument,
 });
+```
+
+When `definitions.output` is set, codegen also appends missing operation definitions:
+
+```ts
+import { defineGraphql } from "@ldystudio/react-graphql-query";
+import * as Gen from "../__generated__/main";
+
+export const PRODUCT_DETAIL = defineGraphql<Gen.ProductDetailQuery, Gen.ProductDetailVariables>()({
+    document: Gen.ProductDetailDocument,
+});
+```
+
+Existing definitions are never overwritten, so you can add `parseKey`, `key`, custom root types, or other options manually. For a target that needs a dedicated GraphQL client:
+
+```ts
+definitions: {
+    output: "src/service/gql/pipixia.gql.ts",
+    client: {
+        name: "Pipixia",
+        importPath: "~/service/client",
+    },
+}
 ```
 
 ### Operation Type Overrides

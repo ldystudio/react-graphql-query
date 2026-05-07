@@ -10,6 +10,9 @@ describe("codegen build config", () => {
                         schema: "https://example.com/graphql",
                         documents: ["src/**/*.graphql"],
                         output: "src/service/__generated__/main.ts",
+                        definitions: {
+                            output: "src/service/gql/main.gql.ts",
+                        },
                         config: {
                             enumsAsConst: true,
                         },
@@ -59,6 +62,13 @@ describe("codegen build config", () => {
                 schema: "https://example.com/graphql",
                 documents: ["src/**/*.graphql"],
                 output: "src/service/__generated__/main.ts",
+                definitions: {
+                    output: "src/service/gql/main.gql.ts",
+                    outputPath: "/repo/src/service/gql/main.gql.ts",
+                    outputRelativePath: "src/service/gql/main.gql.ts",
+                    generatedImportPath: "../__generated__/main",
+                    generatedImportName: "Gen",
+                },
                 config: {
                     enumsAsConst: true,
                 },

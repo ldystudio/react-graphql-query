@@ -1,8 +1,10 @@
-import { relative, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import type {
     GraphqlCodegenBuildResult,
     GraphqlCodegenConfig,
+    GraphqlCodegenDefinitionsConfig,
     GraphqlCodegenProjectConfig,
+    GraphqlCodegenResolvedDefinitionsConfig,
     GraphqlCodegenResolvedTarget,
 } from "./types";
 
@@ -29,6 +31,33 @@ function trimTsExtension(filePath: string) {
     return filePath.slice(0, -3);
 }
 
+function toRelativeImportPath(fromFilePath: string, toFilePath: string) {
+    return relative(dirname(fromFilePath), trimTsExtension(toFilePath))
+        .split("\\")
+        .join("/")
+        .replace(/^([^./])/, "./$1");
+}
+
+function resolveDefinitionsConfig(
+    definitions: GraphqlCodegenDefinitionsConfig | undefined,
+    outputPath: string,
+    projectRoot: string
+): GraphqlCodegenResolvedDefinitionsConfig | undefined {
+    if (!definitions) {
+        return undefined;
+    }
+
+    const definitionsOutputPath = resolve(projectRoot, definitions.output);
+
+    return {
+        ...definitions,
+        outputPath: definitionsOutputPath,
+        outputRelativePath: toPosixPath(relative(projectRoot, definitionsOutputPath)),
+        generatedImportPath: definitions.generatedImportPath ?? toRelativeImportPath(definitionsOutputPath, outputPath),
+        generatedImportName: definitions.generatedImportName ?? "Gen",
+    };
+}
+
 export function buildGraphqlCodegenConfig(
     projectConfig: GraphqlCodegenProjectConfig,
     projectRoot: string
@@ -50,6 +79,7 @@ export function buildGraphqlCodegenConfig(
             tempOutputDirPath,
             tempOutputDirRelativePath,
             sourcePath: resolve(tempOutputDirPath, "graphql.ts"),
+            definitions: resolveDefinitionsConfig(target.definitions, outputPath, projectRoot),
         });
 
         generates[`./${tempOutputDirRelativePath}/`] = {

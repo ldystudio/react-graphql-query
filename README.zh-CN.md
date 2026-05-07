@@ -100,6 +100,7 @@ export function App() {
 
 - 每个 target 生成一个扁平 `.ts` 文件
 - 基于 `client` preset，最终按 `document: Gen.SomeDocument` 使用
+- 支持基于 operation document 自动追加 `defineGraphql` 定义文件
 - 支持可选的 operation type overrides
 - 支持可选的最终源码 transform 和 format 命令
 
@@ -126,6 +127,9 @@ export default defineGraphqlCodegenProject({
             schema: API_URL,
             documents: ["src/service/gql/main.graphql"],
             output: "src/service/__generated__/main.ts",
+            definitions: {
+                output: "src/service/gql/main.gql.ts",
+            },
             config: {
                 defaultScalarType: "unknown",
             },
@@ -143,6 +147,18 @@ export default defineGraphqlCodegenProject({
 npm run codegen
 ```
 
+## 示例
+
+[`examples/codegen`](./examples/codegen) 目录包含匿名化的 GraphQL codegen 示例：
+
+- [`config.ts`](./examples/codegen/config.ts)：带 `definitions.output` 的多 target codegen 配置
+- [`overrides.ts`](./examples/codegen/overrides.ts)：占位 operation type override 规则
+- [`GENERATED_STRUCTURE.md`](./examples/codegen/GENERATED_STRUCTURE.md)：预期生成目录结构和 wrapper 示例
+
+所有示例都使用占位 endpoint、operation 名称和字段路径。
+
+## 生成后用法
+
 生成后的接入通常长这样：
 
 ```ts
@@ -153,6 +169,29 @@ export const PRODUCT_DETAIL = defineGraphql<Gen.ProductDetailQuery, Gen.ProductD
     document: Gen.ProductDetailDocument,
     parseKey: "catalog.product",
 });
+```
+
+配置 `definitions.output` 后，codegen 还会自动追加缺失的 operation 定义：
+
+```ts
+import { defineGraphql } from "@ldystudio/react-graphql-query";
+import * as Gen from "../__generated__/main";
+
+export const PRODUCT_DETAIL = defineGraphql<Gen.ProductDetailQuery, Gen.ProductDetailVariables>()({
+    document: Gen.ProductDetailDocument,
+});
+```
+
+已有定义不会被覆盖，所以你可以手动补 `parseKey`、`key`、自定义根类型或其他选项。需要指定独立 GraphQL client 的 target 可以这样写：
+
+```ts
+definitions: {
+    output: "src/service/gql/pipixia.gql.ts",
+    client: {
+        name: "Pipixia",
+        importPath: "~/service/client",
+    },
+}
 ```
 
 ### Operation Type Overrides

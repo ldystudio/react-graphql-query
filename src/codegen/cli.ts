@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createJiti } from "jiti";
 import { buildGraphqlCodegenConfig } from "./build-config";
+import { syncGraphqlDefinitionsTarget } from "./definitions";
 import { pruneGeneratedTarget } from "./prune";
 import type { GraphqlCodegenModule, GraphqlCodegenProjectConfig } from "./types";
 
@@ -87,10 +88,14 @@ export async function main() {
         await pruneGeneratedTarget(target);
     }
 
-    await runFormatCommand(
-        projectConfig,
-        resolvedTargets.map((target) => target.outputRelativePath)
-    );
+    const definitionFiles = (
+        await Promise.all(resolvedTargets.map((target) => syncGraphqlDefinitionsTarget(target)))
+    ).filter((filePath): filePath is string => Boolean(filePath));
+
+    await runFormatCommand(projectConfig, [
+        ...resolvedTargets.map((target) => target.outputRelativePath),
+        ...definitionFiles,
+    ]);
 }
 
 export function isDirectExecutionTarget(entryPath: string | undefined, modulePath: string) {
