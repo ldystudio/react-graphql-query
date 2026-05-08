@@ -1,110 +1,140 @@
 # react-graphql-query
 
-面向 React 和 React Native 的 definition 驱动 GraphQL 查询辅助库，基于 `@tanstack/react-query` 与 `graphql-request`。
+面向 React 和 React Native 的 definition 驱动 GraphQL 查询辅助库。它把 `graphql-request`、`@tanstack/react-query`、类型化 GraphQL Document、响应解析和缓存辅助能力组合在一个可复用的 definition 里。
 
 [English](./README.md)
 
-## 特性
+## 你会得到什么
 
-- 用一个 definition 绑定 `document`、`parseKey`、默认变量、默认查询配置和可选的 `GraphQLClient`
-- 同时支持手写根类型和 `TypedDocumentNode` 驱动的结果/变量类型推导
-- 返回解析后的目标数据，而不是整棵 GraphQL 根对象
-- 支持从 GraphQL document 保守推导 `parseKey`，也支持手动覆盖
-- 通过 `GraphqlClientProvider` 为 Hook 场景提供默认 client，也可通过 `GraphqlQueryProvider` 一次性组合注入 `GraphQLClient` 与 `QueryClient`
-- 支持 definition 级可选 `key`，以及 `getGraphData`、`setGraphData`、`invalidateGraphQuery` 这类缓存辅助函数
+- 用 `defineGraphql` 只定义一次 GraphQL operation。
+- 同一个 definition 可用于 hooks、非 hook 请求、mutation、infinite query 和缓存辅助函数。
+- 直接读取解析后的数据，例如 `catalog.product`，不用每次处理完整 GraphQL root object。
+- 可从 `TypedDocumentNode` 推导返回类型和变量类型，也支持手写 root 类型。
+- 通过 `GraphqlQueryProvider` 提供共享 `GraphQLClient`。
+- 内置 codegen 流程，可从 `.graphql` 自动生成 `defineGraphql` wrapper 文件。
 
 ## 安装
 
 ```bash
-npm install @ldystudio/react-graphql-query @tanstack/react-query graphql graphql-request
+npm install @ldystudio/react-graphql-query @tanstack/react-query graphql-request graphql
 ```
 
-要求：
+Peer 要求：
 
 - `react >= 18`
 - `@tanstack/react-query >= 5`
 - `graphql-request >= 6.1.0`
 
-如果你还想使用库里自带的 GraphQL codegen 辅助能力，应用项目里还需要安装：
+如果需要使用内置 codegen CLI，在应用项目里再安装：
 
 ```bash
 npm install -D @graphql-codegen/cli @graphql-codegen/client-preset graphql
 ```
 
-## 快速开始
+## 5 分钟接入
+
+### 1. 创建 GraphQL client 和 Provider
 
 ```tsx
 import { QueryClient } from "@tanstack/react-query";
-import { GraphQLClient, gql } from "graphql-request";
-import {
-    GraphqlQueryProvider,
-    defineGraphql,
-    useGraphQuery,
-} from "@ldystudio/react-graphql-query";
+import { GraphQLClient } from "graphql-request";
+import { GraphqlQueryProvider } from "@ldystudio/react-graphql-query";
 
-const client = new GraphQLClient("https://example.com/graphql");
+const graphClient = new GraphQLClient("https://example.com/graphql");
 const queryClient = new QueryClient();
 
-interface ProductListRoot {
-    storefront: {
-        featuredProducts: {
-            nodes: Array<{
-                id: number;
-                title: string;
-            }>;
-        };
-    };
-}
-
-const FEATURED_PRODUCTS = defineGraphql<ProductListRoot>()({
-    document: gql`
-        query {
-            storefront {
-                featuredProducts {
-                    nodes {
-                        id
-                        title
-                    }
-                }
-            }
-        }
-    `,
-});
-
-function ProductList() {
-    const query = useGraphQuery(FEATURED_PRODUCTS);
-
-    if (query.isPending) {
-        return null;
-    }
-
-    return query.data?.map((product) => product.title).join(", ");
-}
-
-export function App() {
+export function Providers({ children }: { children: React.ReactNode }) {
     return (
-        <GraphqlQueryProvider client={client} queryClient={queryClient}>
-            <ProductList />
+        <GraphqlQueryProvider client={graphClient} queryClient={queryClient}>
+            {children}
         </GraphqlQueryProvider>
     );
 }
 ```
 
-这个例子里，`query.data` 会被推导为 `Array<{ id: number; title: string }>`，因为根类型和 document 都沿着同一条安全路径 `storefront.featuredProducts.nodes` 收敛。
+建议在应用根部使用 `GraphqlQueryProvider`。它会同时提供 `GraphQLClient` 和 TanStack Query 的 `QueryClient`。
 
-如果你的应用主要访问同一个 GraphQL endpoint，推荐在组件树外层包一层 `GraphqlQueryProvider`，这样组件里通常不需要重复传 `client`，Hook 也能自动读取共享的 `QueryClient`。
+### 2. 定义一个 operation
 
-## GraphQL Codegen
+手写 document 方式：
 
-这个包也带了一套轻量 codegen 流程，适合需要这些能力的项目：
+```ts
+import { gql } from "graphql-request";
+import { defineGraphql } from "@ldystudio/react-graphql-query";
 
-- 每个 target 生成一个扁平 `.ts` 文件
-- 基于 `client` preset，最终按 `document: Gen.SomeDocument` 使用
-- 支持基于 operation document 自动追加 `defineGraphql` 定义文件
-- 支持可选的 operation type overrides
-- 支持可选的最终源码 transform 和 format 命令
+type ProductDetailRoot = {
+    catalog: {
+        product: {
+            id: string;
+            title: string;
+        };
+    };
+};
 
-先在应用项目里加脚本：
+export const PRODUCT_DETAIL = defineGraphql<ProductDetailRoot, { id: string }>()({
+    document: gql`
+        query ProductDetail($id: ID!) {
+            catalog {
+                product(id: $id) {
+                    id
+                    title
+                }
+            }
+        }
+    `,
+    parseKey: "catalog.product",
+});
+```
+
+生成 document 方式：
+
+```ts
+import { defineGraphql } from "@ldystudio/react-graphql-query";
+import * as Gen from "../__generated__/main";
+
+export const PRODUCT_DETAIL = defineGraphql<Gen.ProductDetailQuery, Gen.ProductDetailQueryVariables>()({
+    document: Gen.ProductDetailDocument,
+    parseKey: "catalog.product",
+});
+```
+
+### 3. 在组件里查询数据
+
+```tsx
+import { useGraphQuery } from "@ldystudio/react-graphql-query";
+import { PRODUCT_DETAIL } from "./gql";
+
+export function ProductTitle({ id }: { id: string }) {
+    const query = useGraphQuery(PRODUCT_DETAIL, {
+        variables: { id },
+        enabled: Boolean(id),
+    });
+
+    if (query.isPending) return null;
+    if (query.isError) return <span>加载失败</span>;
+
+    return <h1>{query.data.title}</h1>;
+}
+```
+
+`query.data` 是 `parseKey` 指向的数据，所以这个组件拿到的是 `catalog.product`，不是完整 GraphQL 响应。
+
+## 推荐的 Codegen 工作流
+
+长期最省心的方式是：
+
+1. 写 `.graphql` operation 文件。
+2. 执行 `react-graphql-query-codegen`。
+3. 从 `*.gql.ts` 导入生成好的 `defineGraphql` wrapper。
+4. 在业务里使用 `useGraphQuery`、`useGraphMutation` 和缓存辅助函数。
+
+### 安装 codegen 依赖
+
+```bash
+npm install -D @graphql-codegen/cli @graphql-codegen/client-preset graphql
+```
+
+### 添加脚本
 
 ```json
 {
@@ -114,12 +144,12 @@ export function App() {
 }
 ```
 
-然后创建 `graphql.codegen.ts`：
+### 创建 `graphql.codegen.ts`
 
 ```ts
 import { defineGraphqlCodegenProject } from "@ldystudio/react-graphql-query/codegen";
 
-const API_URL = "https://example.com/graphql/v1"
+const API_URL = "https://example.com/graphql/v1";
 
 export default defineGraphqlCodegenProject({
     targets: {
@@ -141,226 +171,203 @@ export default defineGraphqlCodegenProject({
 });
 ```
 
-执行：
+### 示例 `.graphql` 文件
+
+```graphql
+query ProductDetail($id: ID!) {
+    catalog {
+        product(id: $id) {
+            id
+            title
+        }
+    }
+}
+```
+
+### 执行 codegen
 
 ```bash
 npm run codegen
 ```
 
-## 示例
-
-[`examples/codegen`](./examples/codegen) 目录包含匿名化的 GraphQL codegen 示例：
-
-- [`config.ts`](./examples/codegen/config.ts)：带 `definitions.output` 的多 target codegen 配置
-- [`overrides.ts`](./examples/codegen/overrides.ts)：占位 operation type override 规则
-- [`GENERATED_STRUCTURE.md`](./examples/codegen/GENERATED_STRUCTURE.md)：预期生成目录结构和 wrapper 示例
-
-所有示例都使用占位 endpoint、operation 名称和字段路径。
-
-## 生成后用法
-
-生成后的接入通常长这样：
-
-```ts
-import * as Gen from "@/service/__generated__/main";
-import { defineGraphql } from "@ldystudio/react-graphql-query";
-
-export const PRODUCT_DETAIL = defineGraphql<Gen.ProductDetailQuery, Gen.ProductDetailVariables>()({
-    document: Gen.ProductDetailDocument,
-    parseKey: "catalog.product",
-});
-```
-
-配置 `definitions.output` 后，codegen 还会自动追加缺失的 operation 定义：
+配置 `definitions.output` 后，CLI 会自动追加缺失 wrapper：
 
 ```ts
 import { defineGraphql } from "@ldystudio/react-graphql-query";
 import * as Gen from "../__generated__/main";
 
-export const PRODUCT_DETAIL = defineGraphql<Gen.ProductDetailQuery, Gen.ProductDetailVariables>()({
+export const PRODUCT_DETAIL = defineGraphql<Gen.ProductDetailQuery, Gen.ProductDetailQueryVariables>()({
     document: Gen.ProductDetailDocument,
 });
 ```
 
-已有定义不会被覆盖，所以你可以手动补 `parseKey`、`key`、自定义根类型或其他选项。需要指定独立 GraphQL client 的 target 可以这样写：
+definitions 生成器只追加，不覆盖。已有 definition 不会被重写，所以可以安全手动添加 `parseKey`、`key`、业务 root 类型、默认选项或 `client`。
+
+如果某个 target 需要独立 GraphQL client：
 
 ```ts
 definitions: {
-    output: "src/service/gql/pipixia.gql.ts",
+    output: "src/service/gql/secondary.gql.ts",
     client: {
-        name: "Pipixia",
+        name: "SecondaryGraphqlClient",
         importPath: "~/service/client",
     },
 }
 ```
 
-### Operation Type Overrides
+更多完整示例：
 
-如果某个 operation 的生成类型里，有一段嵌套路径需要手动替换，可以用 `overrides.operationTypes`：
+- [`examples/codegen/config.ts`](./examples/codegen/config.ts)：多 target codegen 配置
+- [`examples/codegen/overrides.ts`](./examples/codegen/overrides.ts)：operation type overrides
+- [`examples/codegen/GENERATED_STRUCTURE.md`](./examples/codegen/GENERATED_STRUCTURE.md)：生成目录结构和 wrapper 示例
 
-```ts
-import { defineGraphqlCodegenProject } from "@ldystudio/react-graphql-query/codegen";
+所有示例都使用占位 endpoint、operation 名称和字段路径。
 
-export default defineGraphqlCodegenProject({
-    targets: {
-        main: {
-            schema: "https://example.com/graphql",
-            documents: ["src/service/gql/main.graphql"],
-            output: "src/service/__generated__/main.ts",
-            overrides: {
-                operationTypes: [
-                    {
-                        operation: "ProductDetailQuery",
-                        path: "catalog.product",
-                        type: "Product.Detail",
-                    },
-                ],
-            },
-        },
-    },
-});
-```
+## 核心概念
 
-说明：
+### Definition
 
-- overrides 执行顺序是 `prune` 之后、`transformSource` 之前
-- 规则里指向“当前 target 不存在的 operation”会被忽略
-- 如果 operation 存在，但 `path` 没命中，会抛 `[codegen-overrides]` 错误
-- CLI 会故意从应用项目侧加载 `@graphql-codegen/cli`，而不是从本包内部加载，避免 `graphql` 多实例问题
-
-## 核心 API
-
-### `defineGraphql`
-
-定义一个可复用的 GraphQL definition。
+definition 是本库的复用单元。
 
 ```ts
-const PRODUCT_DETAIL = defineGraphql<{
-    catalog: {
-        product: {
-            id: number;
-            title: string;
-        };
-    };
-}>()({
-    document: gql`
-        query ($id: Int!) {
-            catalog {
-                product(id: $id) {
-                    id
-                    title
-                }
-            }
-        }
-    `,
-});
-```
-
-它也支持直接接收 `TypedDocumentNode`，这样可以从生成的 GraphQL document 自动推导结果类型和变量类型。
-
-```ts
-import { ProductDocument } from "./__generated__/graphql";
-
-const PRODUCT_DETAIL = defineGraphql()({
-    document: ProductDocument,
+const PRODUCT_DETAIL = defineGraphql<Root, Variables>()({
+    document,
     parseKey: "catalog.product",
     key: ["catalog", "product-detail"],
+    variables: { locale: "zh-CN" },
+    staleTime: 60_000,
 });
 ```
 
-这里的 `ProductDocument` 必须是一个真实存在的运行时值，通常来自 GraphQL codegen 生成的 document 常量。`declare const ...` 只能用于类型演示，不能直接放进业务代码执行。
+常见字段：
 
-definition 可以包含：
+- `document`：GraphQL query 或 mutation document。必填。
+- `parseKey`：响应解析路径，例如 `catalog.product`。
+- `key`：可选缓存身份，和 `parseKey` 解耦。
+- `variables`：默认变量，调用方不传时使用。
+- `client`：可选 definition 级 `GraphQLClient`。
+- TanStack Query 选项，例如 `enabled`、`staleTime`、`gcTime`。
 
-- `document`: 必填，GraphQL 查询或 mutation 文档
-- `parseKey`: 可选，响应解析路径，例如 `catalog.product`
-- `key`: 可选，缓存身份，和 `parseKey` 分离
-- `variables`: 可选，默认变量
-- `client`: 可选，绑定在 definition 上的 `GraphQLClient`
-- React Query 选项，例如 `staleTime`、`gcTime`、`enabled`
+### `parseKey`
+
+`parseKey` 告诉库返回 GraphQL 响应的哪一段。
+
+```ts
+parseKey: "catalog.product"
+```
+
+这样的响应：
+
+```ts
+{
+    catalog: {
+        product: { id: "p1", title: "Cube" }
+    }
+}
+```
+
+会变成：
+
+```ts
+{ id: "p1", title: "Cube" }
+```
+
+如果省略 `parseKey`，库会尝试从“只有一条明确选择路径”的 document 里自动推导。显式传入时，以手写值为准。
+
+### `key`
+
+`key` 控制缓存身份。当缓存 key 需要稳定，或不想和响应路径绑定时使用。
+
+```ts
+const PRODUCT_LIST = defineGraphql()({
+    document: Gen.ProductListDocument,
+    parseKey: "catalog.products.nodes",
+    key: ["catalog", "product-list"],
+});
+```
+
+## 查询
 
 ### `useGraphQuery`
 
-在 React 组件里执行 definition。
+React 组件里使用。
 
 ```ts
 const query = useGraphQuery(PRODUCT_DETAIL, {
-    variables: { id: 7 },
+    variables: { id: "p1" },
 });
 ```
 
-它内部调用 `useQuery(graphQueryOptions(...))`，返回标准 `UseQueryResult`。
+返回 TanStack Query 的 `UseQueryResult`。
 
-如果当前组件树被 `GraphqlClientProvider` 包裹，且 definition 和 hook options 都没有显式传 `client`，`useGraphQuery` 会自动使用 provider 中的 client。
+### `graphQuery`
 
-### `GraphqlQueryProvider`
-
-一次性提供 `GraphQLClient` 和 `QueryClient`。
-
-```tsx
-<GraphqlQueryProvider client={client} queryClient={queryClient}>
-    <App />
-</GraphqlQueryProvider>
-```
-
-这是更推荐的应用级 provider。它内部组合了 `QueryClientProvider` 和 `GraphqlClientProvider`。
-
-### `GraphqlClientProvider`
-
-为 Hook 场景提供默认 `GraphQLClient`。
-
-```tsx
-<GraphqlClientProvider client={client}>
-    <App />
-</GraphqlClientProvider>
-```
-
-它会给本库的所有 Hook API 提供默认 `GraphQLClient`，包括 `useGraphQuery`、`useInfiniteGraphQuery` 和 `useGraphMutation`。
-
-你也可以开启 `debugParseKeyHeader`，这样 Hook 请求会带上 `x-graph-parse-key`，方便在 `graphql-request` 的 `requestMiddleware` 里打印请求日志。
-
-```tsx
-<GraphqlClientProvider client={client} debugParseKeyHeader>
-    <App />
-</GraphqlClientProvider>
-```
-
-`graphQuery`、`graphQueryOptions`、`graphInfiniteQueryOptions` 和 `graphMutation` 都不会继承 provider client，也不会继承这个调试 header 开关。
-
-### `useGraphMutation`
-
-在 React 组件里执行解析后的 mutation。
+React hook 外使用：路由加载、SSR、预取、事件处理、脚本。
 
 ```ts
-const updateProduct = useGraphMutation(UPDATE_PRODUCT);
+const product = await graphQuery(PRODUCT_DETAIL, {
+    client: graphClient,
+    variables: { id: "p1" },
+});
+```
 
-updateProduct.mutate({
-    id: 7,
+### `graphQueryOptions`
+
+需要直接接入 TanStack Query 时使用。
+
+```ts
+const options = graphQueryOptions(PRODUCT_DETAIL, {
+    client: graphClient,
+    variables: { id: "p1" },
+});
+```
+
+## Mutation
+
+### 定义 mutation
+
+```ts
+export const UPDATE_PRODUCT = defineGraphql<Gen.UpdateProductMutation, Gen.UpdateProductMutationVariables>()({
+    document: Gen.UpdateProductDocument,
+    parseKey: "catalog.updateProduct",
+});
+```
+
+### 在 React 里使用
+
+```ts
+const mutation = useGraphMutation(UPDATE_PRODUCT);
+
+mutation.mutate({
+    id: "p1",
     title: "Updated title",
 });
 ```
 
-它内部基于 TanStack Query 的 `useMutation`，并会自动从 `GraphqlQueryProvider` 或 `QueryClientProvider` 读取共享的 `QueryClient`。
+Mutation 回调会收到 `GraphMutationContext`，里面有 `client`、`definition` 和 `queryClient`。
 
-`onMutate`、`onSuccess`、`onError`、`onSettled` 这些 mutation 回调还会额外收到库层的 `GraphMutationContext`，其中包含 `client`、`definition` 和 `queryClient`。
-
-### `graphMutation`
-
-在非 Hook 场景直接执行解析后的 mutation。
+### 在 React 外使用
 
 ```ts
 const product = await graphMutation(UPDATE_PRODUCT, {
-    client,
+    client: graphClient,
     variables: {
-        id: 7,
+        id: "p1",
         title: "Updated title",
     },
 });
 ```
 
-### `useInfiniteGraphQuery`
+## Infinite Query
 
-在 React 组件里执行解析后的 infinite query。
+建议把 `parseKey` 指向 connection 本身，不要直接指向 `nodes`，这样 `pageInfo` 还在。
+
+```ts
+const PRODUCT_CONNECTION = defineGraphql<Gen.ProductConnectionQuery, Gen.ProductConnectionQueryVariables>()({
+    document: Gen.ProductConnectionDocument,
+    parseKey: "catalog.products",
+});
+```
 
 ```ts
 const query = useInfiniteGraphQuery(PRODUCT_CONNECTION, {
@@ -368,73 +375,21 @@ const query = useInfiniteGraphQuery(PRODUCT_CONNECTION, {
     initialPageParam: null as string | null,
     pageParamToVariables: (pageParam, variables) => ({
         ...variables,
-        after: pageParam,
         first: variables?.first ?? 20,
+        after: pageParam,
     }),
     getNextPageParam: (lastPage) =>
         lastPage.pageInfo.hasNextPage ? lastPage.pageInfo.endCursor : undefined,
 });
 ```
 
-对于 cursor 分页，通常更适合把 `parseKey` 指向 connection 本身，例如 `catalog.products`，而不是直接指向 `nodes`，这样 `pageInfo` 还在。
-
-### `graphInfiniteQueryOptions`
-
-生成标准 TanStack Query infinite query 配置对象。
-
-```ts
-const options = graphInfiniteQueryOptions(PRODUCT_CONNECTION, {
-    variables: { first: 20 },
-    initialPageParam: null as string | null,
-    pageParamToVariables: (pageParam, variables) => ({
-        ...variables,
-        after: pageParam,
-        first: variables?.first ?? 20,
-    }),
-    getNextPageParam: (lastPage) =>
-        lastPage.pageInfo.hasNextPage ? lastPage.pageInfo.endCursor : undefined,
-});
-```
-
-### `graphQuery`
-
-在非 Hook 场景直接获取解析后的数据。
-
-```ts
-import { QueryClient } from "@tanstack/react-query";
-import { graphQuery } from "@ldystudio/react-graphql-query";
-
-const queryClient = new QueryClient();
-
-const product = await graphQuery(PRODUCT_DETAIL, {
-    client,
-    queryClient,
-    variables: { id: 7 },
-});
-```
-
-适合预取、路由加载、SSR 或事件流里取数。
-
-### `graphQueryOptions`
-
-生成标准 TanStack Query 配置对象。
-
-```ts
-const options = graphQueryOptions(PRODUCT_DETAIL, {
-    client,
-    variables: { id: 7 },
-});
-```
-
-可以配合 `useQuery`、`prefetchQuery` 或其他 TanStack Query API 使用。
+需要原始 TanStack Query 配置时，用 `graphInfiniteQueryOptions`。
 
 ## 缓存辅助函数
 
-definition 级缓存 helper 让你直接操作 parse 后的数据，而不用手动回填 GraphQL root shape。
+缓存辅助函数操作的是解析后的数据，不需要你手动重建 GraphQL root object。
 
-`setGraphData` 会沿着 `parseKey` 回写，只更新解析出来的那一段数据，同时保留原始 GraphQL root object 上的 sibling fields。
-
-如果 updater 返回 `undefined`，这个 helper 不会删除已有缓存；已有缓存会保持不变，而当当前 query key 不存在时，它也不会创建新的缓存条目。
+可用函数：
 
 - `queryKeyOf`
 - `getGraphData`
@@ -458,6 +413,7 @@ const mutation = useGraphMutation(UPDATE_PRODUCT, {
                 item.id === variables.id ? { ...item, title: variables.title } : item
             )
         );
+
         return { previous };
     },
     onError: (_error, _variables, rollback, context) => {
@@ -471,108 +427,51 @@ const mutation = useGraphMutation(UPDATE_PRODUCT, {
 });
 ```
 
-## `parseKey` 推导
+如果 `setGraphData` 的 updater 返回 `undefined`，已有缓存保持不变；当前 query key 没有缓存时，也不会创建新缓存。
 
-默认情况下，库会从 document 中自动推导 `parseKey`。
+## Client 解析规则
 
-```graphql
-query {
-    storefront {
-        featuredProducts {
-            nodes {
-                id
-            }
-        }
-    }
-}
-```
-
-上面会推导出：
-
-```ts
-"storefront.featuredProducts.nodes";
-```
-
-推导规则是保守的：
-
-- 只有当每一层都只有一个选中字段时才会继续向下
-- 运行时解析和类型推导都会停在最后一个无歧义节点
-- 遇到不透明包装值、分叉结构或歧义选择时，不会继续收窄
-
-如果你需要显式路径，可以手动传 `parseKey`：
-
-```ts
-const PRODUCT_DETAIL = defineGraphql<Root>()({
-    parseKey: "catalog.product",
-    document: gql`
-        query ($id: Int!) {
-            catalog {
-                product(id: $id) {
-                    id
-                    title
-                }
-            }
-        }
-    `,
-});
-```
-
-显式传入时，以手写值为准。
-
-## `client` 优先级
-
-`GraphQLClient` 有三个来源：
+Hook API 的 client 优先级：
 
 1. `definition.client`
 2. `options.client`
-3. `GraphqlClientProvider`
+3. `GraphqlClientProvider` 或 `GraphqlQueryProvider` 里的 provider client
 
-优先级如下：
+非 hook 辅助函数没有 React provider context，例如 `graphQuery`、`graphQueryOptions`、`graphInfiniteQueryOptions`、`graphMutation`。这些场景要在 definition 或调用 options 里传 `client`。
 
-1. `definition.client`
-2. `options.client`
-3. provider client
+## 调试 Header
 
-如果三者都没有，会抛错。
+`GraphqlClientProvider` 和 `GraphqlQueryProvider` 可以给 hook 请求加 `x-graph-parse-key`：
 
-## `queryKey` 生成规则
-
-默认情况下，`queryKey` 由完整的 `parseKey` 路径和完整的 `variables` 对象组成。
-
-```ts
-getGraphQueryKey("catalog.product", { id: 7 });
+```tsx
+<GraphqlQueryProvider client={graphClient} queryClient={queryClient} debugParseKeyHeader>
+    <App />
+</GraphqlQueryProvider>
 ```
 
-生成结果类似：
+适合在 `graphql-request` middleware 里记录请求。它只影响 provider 下的 hook 请求。
 
-```ts
-["catalog", "product", { id: 7 }];
-```
+## API 速查
 
-保留完整变量对象可以避免“值序列相同但语义不同”的请求共享同一个缓存键。
-
-如果你希望缓存身份更显式，可以在 definition 上提供 `key`：
-
-```ts
-const PRODUCT_LIST = defineGraphql()({
-    document: ProductListDocument,
-    parseKey: "catalog.products.nodes",
-    key: ["catalog", "product-list"],
-});
-```
-
-这会生成类似下面的 query key：
-
-```ts
-["catalog", "product-list", { first: 20 }];
-```
+| 任务 | API |
+| --- | --- |
+| 定义 operation | `defineGraphql` |
+| 组件里查询 | `useGraphQuery` |
+| React 外查询 | `graphQuery` |
+| 生成 TanStack Query 配置 | `graphQueryOptions` |
+| 组件里 mutation | `useGraphMutation` |
+| React 外 mutation | `graphMutation` |
+| 组件里 infinite query | `useInfiniteGraphQuery` |
+| 生成 infinite query 配置 | `graphInfiniteQueryOptions` |
+| 应用级注入 client | `GraphqlQueryProvider` |
+| 读写解析后的缓存 | `getGraphData`, `setGraphData` |
 
 ## 限制
 
-- 当前只支持 `graphql-request`
-- 自动 `parseKey` 推导要求 document 只有一个顶层字段
-- 结构分叉或语义不明确时，推导会停在最后一个安全节点
-- `debugParseKeyHeader` 只影响 `GraphqlClientProvider` 或 `GraphqlQueryProvider` 下的 Hook 请求
+- 当前只支持 `graphql-request`。
+- 自动 `parseKey` 推导要求 document 只有一个顶层字段。
+- 结构分叉或语义不明确时，推导会停在最后一个安全节点。
+- `debugParseKeyHeader` 只影响 `GraphqlClientProvider` 或 `GraphqlQueryProvider` 下的 hook 请求。
 
 ## License
 

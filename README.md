@@ -1,110 +1,140 @@
 # react-graphql-query
 
-Definition-driven GraphQL query helpers for React and React Native, built on top of `@tanstack/react-query` and `graphql-request`.
+Definition-driven GraphQL helpers for React and React Native. It combines `graphql-request`, `@tanstack/react-query`, typed GraphQL documents, parsed response data, and cache helpers behind one reusable definition object.
 
 [简体中文](./README.zh-CN.md)
 
-## Features
+## What You Get
 
-- Bind `document`, `parseKey`, default variables, default query options, and an optional `GraphQLClient` into one reusable definition
-- Support both manual root typing and `TypedDocumentNode`-driven result and variables inference
-- Return parsed target data instead of the full GraphQL root object
-- Infer `parseKey` conservatively from the GraphQL document, with manual override when needed
-- Support provider-based default clients for hooks through `GraphqlClientProvider` and combined client/query setup through `GraphqlQueryProvider`
-- Support optional definition-level `key` and cache helpers such as `getGraphData`, `setGraphData`, and `invalidateGraphQuery`
+- Define each GraphQL operation once with `defineGraphql`.
+- Use the same definition in hooks, non-hook fetches, mutations, infinite queries, and cache helpers.
+- Read parsed data directly, for example `catalog.product`, instead of the whole GraphQL root object.
+- Infer result and variable types from `TypedDocumentNode`, or provide your own root type.
+- Provide a shared `GraphQLClient` through `GraphqlQueryProvider`.
+- Generate `defineGraphql` wrapper files from `.graphql` operations with the built-in codegen flow.
 
-## Installation
+## Install
 
 ```bash
-npm install @ldystudio/react-graphql-query @tanstack/react-query graphql graphql-request
+npm install @ldystudio/react-graphql-query @tanstack/react-query graphql-request graphql
 ```
 
-Requirements:
+Peer requirements:
 
 - `react >= 18`
 - `@tanstack/react-query >= 5`
 - `graphql-request >= 6.1.0`
 
-If you want to use the packaged GraphQL codegen helpers as well, install these in your app project:
+For the built-in codegen CLI, also install GraphQL Code Generator in your app project:
 
 ```bash
 npm install -D @graphql-codegen/cli @graphql-codegen/client-preset graphql
 ```
 
-## Quick Start
+## 5-Minute Setup
+
+### 1. Create a GraphQL client and provider
 
 ```tsx
 import { QueryClient } from "@tanstack/react-query";
-import { GraphQLClient, gql } from "graphql-request";
-import {
-    GraphqlQueryProvider,
-    defineGraphql,
-    useGraphQuery,
-} from "@ldystudio/react-graphql-query";
+import { GraphQLClient } from "graphql-request";
+import { GraphqlQueryProvider } from "@ldystudio/react-graphql-query";
 
-const client = new GraphQLClient("https://example.com/graphql");
+const graphClient = new GraphQLClient("https://example.com/graphql");
 const queryClient = new QueryClient();
 
-interface ProductListRoot {
-    storefront: {
-        featuredProducts: {
-            nodes: Array<{
-                id: number;
-                title: string;
-            }>;
-        };
-    };
-}
-
-const FEATURED_PRODUCTS = defineGraphql<ProductListRoot>()({
-    document: gql`
-        query {
-            storefront {
-                featuredProducts {
-                    nodes {
-                        id
-                        title
-                    }
-                }
-            }
-        }
-    `,
-});
-
-function ProductList() {
-    const query = useGraphQuery(FEATURED_PRODUCTS);
-
-    if (query.isPending) {
-        return null;
-    }
-
-    return query.data?.map((product) => product.title).join(", ");
-}
-
-export function App() {
+export function Providers({ children }: { children: React.ReactNode }) {
     return (
-        <GraphqlQueryProvider client={client} queryClient={queryClient}>
-            <ProductList />
+        <GraphqlQueryProvider client={graphClient} queryClient={queryClient}>
+            {children}
         </GraphqlQueryProvider>
     );
 }
 ```
 
-In this example, `query.data` is inferred as `Array<{ id: number; title: string }>` because the root type and the document both converge to the same safe path: `storefront.featuredProducts.nodes`.
+Use `GraphqlQueryProvider` at app root. It provides both `GraphQLClient` and TanStack Query's `QueryClient`.
 
-If your app mainly talks to a single GraphQL endpoint, wrap the tree with `GraphqlQueryProvider` so components usually do not need to pass `client` repeatedly, and hooks can also read the shared `QueryClient` automatically.
+### 2. Define an operation
 
-## GraphQL Codegen
+Manual document style:
 
-The package also ships a small codegen pipeline for projects that want:
+```ts
+import { gql } from "graphql-request";
+import { defineGraphql } from "@ldystudio/react-graphql-query";
 
-- one generated file per target
-- `client` preset output rewritten to `document: Gen.SomeDocument`
-- optional `defineGraphql` definition files generated from operation documents
-- optional operation-type overrides
-- optional final source transforms and format commands
+type ProductDetailRoot = {
+    catalog: {
+        product: {
+            id: string;
+            title: string;
+        };
+    };
+};
 
-Add a script in your app project:
+export const PRODUCT_DETAIL = defineGraphql<ProductDetailRoot, { id: string }>()({
+    document: gql`
+        query ProductDetail($id: ID!) {
+            catalog {
+                product(id: $id) {
+                    id
+                    title
+                }
+            }
+        }
+    `,
+    parseKey: "catalog.product",
+});
+```
+
+Generated document style:
+
+```ts
+import { defineGraphql } from "@ldystudio/react-graphql-query";
+import * as Gen from "../__generated__/main";
+
+export const PRODUCT_DETAIL = defineGraphql<Gen.ProductDetailQuery, Gen.ProductDetailQueryVariables>()({
+    document: Gen.ProductDetailDocument,
+    parseKey: "catalog.product",
+});
+```
+
+### 3. Query data in a component
+
+```tsx
+import { useGraphQuery } from "@ldystudio/react-graphql-query";
+import { PRODUCT_DETAIL } from "./gql";
+
+export function ProductTitle({ id }: { id: string }) {
+    const query = useGraphQuery(PRODUCT_DETAIL, {
+        variables: { id },
+        enabled: Boolean(id),
+    });
+
+    if (query.isPending) return null;
+    if (query.isError) return <span>Failed to load product</span>;
+
+    return <h1>{query.data.title}</h1>;
+}
+```
+
+`query.data` is the parsed value at `parseKey`, so this component receives `catalog.product` directly.
+
+## Recommended Codegen Workflow
+
+The fastest long-term setup is:
+
+1. Write `.graphql` operation files.
+2. Run `react-graphql-query-codegen`.
+3. Import generated `defineGraphql` wrappers from `*.gql.ts`.
+4. Use `useGraphQuery`, `useGraphMutation`, and cache helpers in app code.
+
+### Install codegen dependencies
+
+```bash
+npm install -D @graphql-codegen/cli @graphql-codegen/client-preset graphql
+```
+
+### Add script
 
 ```json
 {
@@ -114,12 +144,12 @@ Add a script in your app project:
 }
 ```
 
-Then create `graphql.codegen.ts`:
+### Create `graphql.codegen.ts`
 
 ```ts
 import { defineGraphqlCodegenProject } from "@ldystudio/react-graphql-query/codegen";
 
-const API_URL = "https://example.com/graphql/v1"
+const API_URL = "https://example.com/graphql/v1";
 
 export default defineGraphqlCodegenProject({
     targets: {
@@ -141,226 +171,203 @@ export default defineGraphqlCodegenProject({
 });
 ```
 
-Run:
+### Example `.graphql` file
+
+```graphql
+query ProductDetail($id: ID!) {
+    catalog {
+        product(id: $id) {
+            id
+            title
+        }
+    }
+}
+```
+
+### Run codegen
 
 ```bash
 npm run codegen
 ```
 
-## Examples
-
-The [`examples/codegen`](./examples/codegen) directory contains an anonymized GraphQL codegen setup:
-
-- [`config.ts`](./examples/codegen/config.ts): multi-target codegen config with `definitions.output`
-- [`overrides.ts`](./examples/codegen/overrides.ts): placeholder operation type override rules
-- [`GENERATED_STRUCTURE.md`](./examples/codegen/GENERATED_STRUCTURE.md): expected generated file structure and wrapper examples
-
-All examples use placeholder endpoints, operation names, and field paths.
-
-## Generated Usage
-
-Generated usage usually looks like:
-
-```ts
-import * as Gen from "@/service/__generated__/main";
-import { defineGraphql } from "@ldystudio/react-graphql-query";
-
-export const PRODUCT_DETAIL = defineGraphql<Gen.ProductDetailQuery, Gen.ProductDetailVariables>()({
-    parseKey: "catalog.product",
-    document: Gen.ProductDetailDocument,
-});
-```
-
-When `definitions.output` is set, codegen also appends missing operation definitions:
+With `definitions.output`, the CLI appends missing wrappers like this:
 
 ```ts
 import { defineGraphql } from "@ldystudio/react-graphql-query";
 import * as Gen from "../__generated__/main";
 
-export const PRODUCT_DETAIL = defineGraphql<Gen.ProductDetailQuery, Gen.ProductDetailVariables>()({
+export const PRODUCT_DETAIL = defineGraphql<Gen.ProductDetailQuery, Gen.ProductDetailQueryVariables>()({
     document: Gen.ProductDetailDocument,
 });
 ```
 
-Existing definitions are never overwritten, so you can add `parseKey`, `key`, custom root types, or other options manually. For a target that needs a dedicated GraphQL client:
+The definitions generator is append-only. Existing definitions are not overwritten, so you can safely add `parseKey`, `key`, custom root types, default options, or `client` manually.
+
+For a target with a dedicated GraphQL client:
 
 ```ts
 definitions: {
-    output: "src/service/gql/pipixia.gql.ts",
+    output: "src/service/gql/secondary.gql.ts",
     client: {
-        name: "Pipixia",
+        name: "SecondaryGraphqlClient",
         importPath: "~/service/client",
     },
 }
 ```
 
-### Operation Type Overrides
+More complete examples:
 
-If a generated operation type needs a manual replacement at a nested path, use `overrides.operationTypes`:
+- [`examples/codegen/config.ts`](./examples/codegen/config.ts): multi-target codegen config
+- [`examples/codegen/overrides.ts`](./examples/codegen/overrides.ts): operation type overrides
+- [`examples/codegen/GENERATED_STRUCTURE.md`](./examples/codegen/GENERATED_STRUCTURE.md): generated file structure and wrappers
 
-```ts
-import { defineGraphqlCodegenProject } from "@ldystudio/react-graphql-query/codegen";
+All examples use placeholder endpoints, operation names, and field paths.
 
-export default defineGraphqlCodegenProject({
-    targets: {
-        main: {
-            schema: "https://example.com/graphql",
-            documents: ["src/service/gql/main.graphql"],
-            output: "src/service/__generated__/main.ts",
-            overrides: {
-                operationTypes: [
-                    {
-                        operation: "ProductDetailQuery",
-                        path: "catalog.product",
-                        type: "Product.Detail",
-                    },
-                ],
-            },
-        },
-    },
-});
-```
+## Core Concepts
 
-Notes:
+### Definition
 
-- overrides run after prune and before `transformSource`
-- rules that target operations missing from the current target are ignored
-- if the operation exists but the `path` does not match, codegen throws a `[codegen-overrides]` error
-- the CLI intentionally loads `@graphql-codegen/cli` from the app project, not from this package, to avoid GraphQL multi-instance issues
-
-## Core API
-
-### `defineGraphql`
-
-Create a reusable GraphQL definition.
+A definition is the reusable unit of this library.
 
 ```ts
-const PRODUCT_DETAIL = defineGraphql<{
-    catalog: {
-        product: {
-            id: number;
-            title: string;
-        };
-    };
-}>()({
-    document: gql`
-        query ($id: Int!) {
-            catalog {
-                product(id: $id) {
-                    id
-                    title
-                }
-            }
-        }
-    `,
-});
-```
-
-It also accepts a `TypedDocumentNode` directly, which lets the library infer both result data and variables from generated GraphQL documents.
-
-```ts
-import { ProductDocument } from "./__generated__/graphql";
-
-const PRODUCT_DETAIL = defineGraphql()({
-    document: ProductDocument,
+const PRODUCT_DETAIL = defineGraphql<Root, Variables>()({
+    document,
     parseKey: "catalog.product",
     key: ["catalog", "product-detail"],
+    variables: { locale: "en" },
+    staleTime: 60_000,
 });
 ```
 
-Here `ProductDocument` must be a real runtime value, usually generated by GraphQL codegen. A `declare const ...` example is only valid for type illustration, not executable application code.
+Common fields:
 
-A definition can include:
+- `document`: GraphQL query or mutation document. Required.
+- `parseKey`: response path to return as data, such as `catalog.product`.
+- `key`: optional cache identity independent of `parseKey`.
+- `variables`: default variables used when callers omit them.
+- `client`: optional definition-level `GraphQLClient`.
+- TanStack Query options such as `enabled`, `staleTime`, and `gcTime`.
 
-- `document`: required GraphQL query or mutation document
-- `parseKey`: optional response parsing path such as `catalog.product`
-- `key`: optional cache identity, separate from `parseKey`
-- `variables`: optional default variables
-- `client`: optional `GraphQLClient` bound to the definition
-- React Query options such as `staleTime`, `gcTime`, and `enabled`
+### `parseKey`
+
+`parseKey` tells the library which part of the GraphQL response should be returned.
+
+```ts
+parseKey: "catalog.product"
+```
+
+A response like this:
+
+```ts
+{
+    catalog: {
+        product: { id: "p1", title: "Cube" }
+    }
+}
+```
+
+becomes:
+
+```ts
+{ id: "p1", title: "Cube" }
+```
+
+If `parseKey` is omitted, the library tries to infer it from documents with one unambiguous selection path. Explicit `parseKey` always wins.
+
+### `key`
+
+`key` controls cache identity. Use it when the cache key should be stable or different from the response path.
+
+```ts
+const PRODUCT_LIST = defineGraphql()({
+    document: Gen.ProductListDocument,
+    parseKey: "catalog.products.nodes",
+    key: ["catalog", "product-list"],
+});
+```
+
+## Queries
 
 ### `useGraphQuery`
 
-Run a definition inside React components.
+Use this in React components.
 
 ```ts
 const query = useGraphQuery(PRODUCT_DETAIL, {
-    variables: { id: 7 },
+    variables: { id: "p1" },
 });
 ```
 
-Internally it calls `useQuery(graphQueryOptions(...))` and returns a standard `UseQueryResult`.
+It returns TanStack Query's `UseQueryResult`.
 
-If the component tree is wrapped by `GraphqlClientProvider`, and neither the definition nor the hook options provide a `client`, `useGraphQuery` uses the provider client automatically.
+### `graphQuery`
 
-### `GraphqlQueryProvider`
-
-Provide both `GraphQLClient` and `QueryClient` in one component.
-
-```tsx
-<GraphqlQueryProvider client={client} queryClient={queryClient}>
-    <App />
-</GraphqlQueryProvider>
-```
-
-This is the recommended provider for app-level usage. Internally it wraps `QueryClientProvider` and `GraphqlClientProvider`.
-
-### `GraphqlClientProvider`
-
-Provide a default `GraphQLClient` for hook usage.
-
-```tsx
-<GraphqlClientProvider client={client}>
-    <App />
-</GraphqlClientProvider>
-```
-
-It provides a default `GraphQLClient` for all hook APIs in this library, including `useGraphQuery`, `useInfiniteGraphQuery`, and `useGraphMutation`.
-
-You can also enable `debugParseKeyHeader` so hook requests include `x-graph-parse-key`, which is useful for request logging inside `graphql-request` `requestMiddleware`.
-
-```tsx
-<GraphqlClientProvider client={client} debugParseKeyHeader>
-    <App />
-</GraphqlClientProvider>
-```
-
-`graphQuery`, `graphQueryOptions`, `graphInfiniteQueryOptions`, and `graphMutation` do not inherit either the provider client or this debug header flag.
-
-### `useGraphMutation`
-
-Run a parsed mutation inside React components.
+Use this outside React hooks: route loaders, SSR, prefetching, event handlers, scripts.
 
 ```ts
-const updateProduct = useGraphMutation(UPDATE_PRODUCT);
+const product = await graphQuery(PRODUCT_DETAIL, {
+    client: graphClient,
+    variables: { id: "p1" },
+});
+```
 
-updateProduct.mutate({
-    id: 7,
+### `graphQueryOptions`
+
+Use this when you want raw TanStack Query integration.
+
+```ts
+const options = graphQueryOptions(PRODUCT_DETAIL, {
+    client: graphClient,
+    variables: { id: "p1" },
+});
+```
+
+## Mutations
+
+### Define a mutation
+
+```ts
+export const UPDATE_PRODUCT = defineGraphql<Gen.UpdateProductMutation, Gen.UpdateProductMutationVariables>()({
+    document: Gen.UpdateProductDocument,
+    parseKey: "catalog.updateProduct",
+});
+```
+
+### Use it in React
+
+```ts
+const mutation = useGraphMutation(UPDATE_PRODUCT);
+
+mutation.mutate({
+    id: "p1",
     title: "Updated title",
 });
 ```
 
-It uses TanStack Query's `useMutation` under the hood and automatically reads the shared `QueryClient` from `GraphqlQueryProvider` or `QueryClientProvider`.
+Mutation callbacks receive a `GraphMutationContext` with `client`, `definition`, and `queryClient`.
 
-Mutation callbacks such as `onMutate`, `onSuccess`, `onError`, and `onSettled` also receive a library-level `GraphMutationContext`, which includes `client`, `definition`, and `queryClient`.
-
-### `graphMutation`
-
-Run a parsed mutation directly outside hooks.
+### Use it outside React
 
 ```ts
 const product = await graphMutation(UPDATE_PRODUCT, {
-    client,
+    client: graphClient,
     variables: {
-        id: 7,
+        id: "p1",
         title: "Updated title",
     },
 });
 ```
 
-### `useInfiniteGraphQuery`
+## Infinite Queries
 
-Run a parsed infinite query inside React components.
+Parse to the connection object, not directly to `nodes`, so `pageInfo` remains available.
+
+```ts
+const PRODUCT_CONNECTION = defineGraphql<Gen.ProductConnectionQuery, Gen.ProductConnectionQueryVariables>()({
+    document: Gen.ProductConnectionDocument,
+    parseKey: "catalog.products",
+});
+```
 
 ```ts
 const query = useInfiniteGraphQuery(PRODUCT_CONNECTION, {
@@ -368,73 +375,21 @@ const query = useInfiniteGraphQuery(PRODUCT_CONNECTION, {
     initialPageParam: null as string | null,
     pageParamToVariables: (pageParam, variables) => ({
         ...variables,
-        after: pageParam,
         first: variables?.first ?? 20,
+        after: pageParam,
     }),
     getNextPageParam: (lastPage) =>
         lastPage.pageInfo.hasNextPage ? lastPage.pageInfo.endCursor : undefined,
 });
 ```
 
-For cursor pagination, it is usually better to parse to the connection node itself, such as `catalog.products`, instead of parsing directly to `nodes`, so `pageInfo` remains available.
-
-### `graphInfiniteQueryOptions`
-
-Build a standard TanStack Query infinite-query options object.
-
-```ts
-const options = graphInfiniteQueryOptions(PRODUCT_CONNECTION, {
-    variables: { first: 20 },
-    initialPageParam: null as string | null,
-    pageParamToVariables: (pageParam, variables) => ({
-        ...variables,
-        after: pageParam,
-        first: variables?.first ?? 20,
-    }),
-    getNextPageParam: (lastPage) =>
-        lastPage.pageInfo.hasNextPage ? lastPage.pageInfo.endCursor : undefined,
-});
-```
-
-### `graphQuery`
-
-Fetch parsed data directly in non-hook scenarios.
-
-```ts
-import { QueryClient } from "@tanstack/react-query";
-import { graphQuery } from "@ldystudio/react-graphql-query";
-
-const queryClient = new QueryClient();
-
-const product = await graphQuery(PRODUCT_DETAIL, {
-    client,
-    queryClient,
-    variables: { id: 7 },
-});
-```
-
-Useful for prefetching, route loaders, SSR, or event-driven data fetching.
-
-### `graphQueryOptions`
-
-Build a standard TanStack Query options object.
-
-```ts
-const options = graphQueryOptions(PRODUCT_DETAIL, {
-    client,
-    variables: { id: 7 },
-});
-```
-
-Use it with `useQuery`, `prefetchQuery`, or other TanStack Query APIs.
+Use `graphInfiniteQueryOptions` for raw TanStack Query integration.
 
 ## Cache Helpers
 
-Definition-level cache helpers let you work with parsed data instead of manually rebuilding the GraphQL root shape.
+Cache helpers operate on parsed data instead of requiring you to rebuild the GraphQL root object.
 
-`setGraphData` writes back through `parseKey`, so it updates only the parsed branch while preserving sibling fields on the original GraphQL root object.
-
-If the updater returns `undefined`, the helper does not delete existing cache entries. It keeps existing cache data unchanged, and it also does not create a new cache entry when the query key is currently missing.
+Available helpers:
 
 - `queryKeyOf`
 - `getGraphData`
@@ -444,7 +399,7 @@ If the updater returns `undefined`, the helper does not delete existing cache en
 - `removeGraphQuery`
 - `resetGraphQuery`
 
-Example with optimistic updates:
+Optimistic update example:
 
 ```ts
 const mutation = useGraphMutation(UPDATE_PRODUCT, {
@@ -458,6 +413,7 @@ const mutation = useGraphMutation(UPDATE_PRODUCT, {
                 item.id === variables.id ? { ...item, title: variables.title } : item
             )
         );
+
         return { previous };
     },
     onError: (_error, _variables, rollback, context) => {
@@ -471,108 +427,51 @@ const mutation = useGraphMutation(UPDATE_PRODUCT, {
 });
 ```
 
-## `parseKey` Inference
+If a `setGraphData` updater returns `undefined`, existing cache data is kept unchanged and missing cache entries are not created.
 
-By default, the library infers `parseKey` from the document.
+## Client Resolution
 
-```graphql
-query {
-    storefront {
-        featuredProducts {
-            nodes {
-                id
-            }
-        }
-    }
-}
-```
-
-This resolves to:
-
-```ts
-"storefront.featuredProducts.nodes";
-```
-
-The inference is intentionally conservative:
-
-- It only keeps drilling down while each level has exactly one selected field
-- Runtime parsing and type inference stop at the last unambiguous node
-- Opaque wrapper values, branching shapes, or ambiguous selections stop further narrowing
-
-If you need an explicit path, pass `parseKey` manually:
-
-```ts
-const PRODUCT_DETAIL = defineGraphql<Root>()({
-    parseKey: "catalog.product",
-    document: gql`
-        query ($id: Int!) {
-            catalog {
-                product(id: $id) {
-                    id
-                    title
-                }
-            }
-        }
-    `,
-});
-```
-
-When provided, the explicit `parseKey` wins.
-
-## `client` Priority
-
-You can provide a `GraphQLClient` from three places:
+For hook APIs, client priority is:
 
 1. `definition.client`
 2. `options.client`
-3. `GraphqlClientProvider`
+3. provider client from `GraphqlClientProvider` or `GraphqlQueryProvider`
 
-Priority is:
+For non-hook helpers such as `graphQuery`, `graphQueryOptions`, `graphInfiniteQueryOptions`, and `graphMutation`, provider context is not available. Pass `client` through the definition or the call options.
 
-1. `definition.client`
-2. `options.client`
-3. provider client
+## Debug Headers
 
-If none is available, the library throws an error.
+`GraphqlClientProvider` and `GraphqlQueryProvider` can add `x-graph-parse-key` to hook requests:
 
-## `queryKey` Generation
-
-By default, `queryKey` is generated from the full `parseKey` path and the full `variables` object.
-
-```ts
-getGraphQueryKey("catalog.product", { id: 7 });
+```tsx
+<GraphqlQueryProvider client={graphClient} queryClient={queryClient} debugParseKeyHeader>
+    <App />
+</GraphqlQueryProvider>
 ```
 
-This produces a stable key like:
+This is useful for logging in `graphql-request` middleware. It only affects hook requests under the provider.
 
-```ts
-["catalog", "product", { id: 7 }];
-```
+## API Cheat Sheet
 
-Keeping the full variables object avoids collisions between requests that happen to share the same value sequence but have different meanings.
-
-If you need a more explicit cache identity, provide `key` on the definition:
-
-```ts
-const PRODUCT_LIST = defineGraphql()({
-    document: ProductListDocument,
-    parseKey: "catalog.products.nodes",
-    key: ["catalog", "product-list"],
-});
-```
-
-This produces query keys like:
-
-```ts
-["catalog", "product-list", { first: 20 }];
-```
+| Task | API |
+| --- | --- |
+| Define operation | `defineGraphql` |
+| Query in component | `useGraphQuery` |
+| Query outside React | `graphQuery` |
+| Build TanStack query options | `graphQueryOptions` |
+| Mutate in component | `useGraphMutation` |
+| Mutate outside React | `graphMutation` |
+| Infinite query in component | `useInfiniteGraphQuery` |
+| Build infinite query options | `graphInfiniteQueryOptions` |
+| Provide app-level clients | `GraphqlQueryProvider` |
+| Read/update parsed cache | `getGraphData`, `setGraphData` |
 
 ## Limitations
 
-- Only `graphql-request` is supported today
-- Automatic `parseKey` inference requires exactly one top-level field in the document
-- Inference stops at the last safe node when the shape branches or becomes ambiguous
-- `debugParseKeyHeader` only affects hook requests under `GraphqlClientProvider` or `GraphqlQueryProvider`
+- Only `graphql-request` is supported today.
+- Automatic `parseKey` inference requires exactly one top-level field in the document.
+- Inference stops at the last safe node when the shape branches or becomes ambiguous.
+- `debugParseKeyHeader` only affects hook requests under `GraphqlClientProvider` or `GraphqlQueryProvider`.
 
 ## License
 
