@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
-import { realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
-import { resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createJiti } from "jiti";
+import { parseConfigFileTextToJson } from "typescript";
 import { buildGraphqlCodegenConfig } from "./build-config";
 import { syncGraphqlDefinitionsTarget } from "./definitions";
 import { pruneGeneratedTarget } from "./prune";
@@ -23,10 +24,96 @@ function printUsage() {
     console.error("Usage: react-graphql-query-codegen --config <path-to-config>");
 }
 
-export async function loadProjectConfig(configPath: string) {
+type TsConfigJson = {
+    compilerOptions?: {
+        baseUrl?: string;
+        paths?: Record<string, string[]>;
+    };
+};
+
+function findTsConfig(configPath: string, projectRoot: string) {
+    let currentDir = dirname(configPath);
+    const rootDir = resolve(projectRoot);
+
+    while (currentDir.startsWith(rootDir)) {
+        const tsconfigPath = join(currentDir, "tsconfig.json");
+        if (existsSync(tsconfigPath)) {
+            return tsconfigPath;
+        }
+
+        const parentDir = dirname(currentDir);
+        if (parentDir === currentDir) {
+            break;
+        }
+        currentDir = parentDir;
+    }
+
+    const rootTsConfigPath = join(rootDir, "tsconfig.json");
+    return existsSync(rootTsConfigPath) ? rootTsConfigPath : undefined;
+}
+
+function normalizePathAlias(aliasKey: string, aliasTargets: string[], baseDir: string) {
+    const aliasTarget = aliasTargets[0];
+    if (!aliasTarget) {
+        return undefined;
+    }
+
+    const keyStarIndex = aliasKey.indexOf("*");
+    const targetStarIndex = aliasTarget.indexOf("*");
+    const jitiAliasKey = keyStarIndex === -1 ? aliasKey : aliasKey.slice(0, keyStarIndex);
+    const targetPrefix = targetStarIndex === -1 ? aliasTarget : aliasTarget.slice(0, targetStarIndex);
+
+    if (!jitiAliasKey) {
+        return undefined;
+    }
+
+    return [jitiAliasKey, resolve(baseDir, targetPrefix)] as const;
+}
+
+function loadTsConfigPathAliases(configPath: string, projectRoot: string) {
+    const tsconfigPath = findTsConfig(configPath, projectRoot);
+    if (!tsconfigPath) {
+        return {};
+    }
+
+    const parsedConfig = parseConfigFileTextToJson(tsconfigPath, readFileSync(tsconfigPath, "utf8"));
+    if (parsedConfig.error) {
+        return {};
+    }
+
+    const tsconfig = parsedConfig.config as TsConfigJson;
+    const paths = tsconfig.compilerOptions?.paths;
+    if (!paths) {
+        return {};
+    }
+
+    const configDir = dirname(tsconfigPath);
+    const baseDir = resolve(configDir, tsconfig.compilerOptions?.baseUrl ?? ".");
+    return Object.fromEntries(
+        Object.entries(paths)
+            .map(([aliasKey, aliasTargets]) => normalizePathAlias(aliasKey, aliasTargets, baseDir))
+            .filter((entry): entry is readonly [string, string] => Boolean(entry))
+    );
+}
+
+function loadProjectVirtualModules(projectRoot: string) {
+    const projectRequire = createRequire(resolve(projectRoot, "package.json"));
+
+    try {
+        return {
+            "react-native": projectRequire("react-native-web") as unknown,
+        };
+    } catch {
+        return {};
+    }
+}
+
+export async function loadProjectConfig(configPath: string, projectRoot = process.cwd()) {
     const jiti = createJiti(import.meta.url, {
         moduleCache: false,
         fsCache: false,
+        alias: loadTsConfigPathAliases(configPath, projectRoot),
+        virtualModules: loadProjectVirtualModules(projectRoot),
     });
     const loadedModule = await jiti.import<GraphqlCodegenProjectConfig>(configPath);
 
