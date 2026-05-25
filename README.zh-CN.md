@@ -242,7 +242,7 @@ const PRODUCT_DETAIL = defineGraphql<Root, Variables>()({
 常见字段：
 
 - `document`：GraphQL query 或 mutation document。必填。
-- `parseKey`：响应解析路径，例如 `catalog.product`。
+- `parseKey`：响应解析路径，例如 `catalog.product`；传 `""` 时返回完整 root 响应。
 - `key`：可选缓存身份，和 `parseKey` 解耦。
 - `variables`：默认变量，调用方不传时使用。
 - `client`：可选 definition 级 `GraphQLClient`。
@@ -271,6 +271,18 @@ parseKey: "catalog.product"
 ```ts
 { id: "p1", title: "Cube" }
 ```
+
+当一个 operation 有意读取多个顶层字段，且调用方需要完整 root object 时，可以使用空 `parseKey`：
+
+```ts
+const DASHBOARD = defineGraphql()({
+    document: Gen.DashboardDocument,
+    parseKey: "",
+    key: ["dashboard"],
+});
+```
+
+这时 `query.data` 是完整响应，例如 `{ notifications, accountSummary }`。
 
 如果省略 `parseKey`，库会尝试从“只有一条明确选择路径”的 document 里自动推导。显式传入时，以手写值为准。
 
@@ -469,8 +481,8 @@ Hook API 的 client 优先级：
 ## 限制
 
 - 当前只支持 `graphql-request`。
-- 自动 `parseKey` 推导要求 document 只有一个顶层字段。
-- 结构分叉或语义不明确时，推导会停在最后一个安全节点。
+- 自动 `parseKey` 推导只适用于 document 只有一个顶层字段的情况。需要多个顶层字段的完整 root 响应时，请使用 `parseKey: ""`。
+- 嵌套 selection 分叉或语义不明确时，推导会停在最后一个安全 object 节点。
 - `debugParseKeyHeader` 只影响 `GraphqlClientProvider` 或 `GraphqlQueryProvider` 下的 hook 请求。
 
 ## License

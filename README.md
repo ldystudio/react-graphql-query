@@ -242,7 +242,7 @@ const PRODUCT_DETAIL = defineGraphql<Root, Variables>()({
 Common fields:
 
 - `document`: GraphQL query or mutation document. Required.
-- `parseKey`: response path to return as data, such as `catalog.product`.
+- `parseKey`: response path to return as data, such as `catalog.product`; use `""` to return the full root response.
 - `key`: optional cache identity independent of `parseKey`.
 - `variables`: default variables used when callers omit them.
 - `client`: optional definition-level `GraphQLClient`.
@@ -271,6 +271,18 @@ becomes:
 ```ts
 { id: "p1", title: "Cube" }
 ```
+
+Use an empty `parseKey` when an operation intentionally reads multiple top-level fields and callers need the full root object:
+
+```ts
+const DASHBOARD = defineGraphql()({
+    document: Gen.DashboardDocument,
+    parseKey: "",
+    key: ["dashboard"],
+});
+```
+
+In that case `query.data` is the complete response, for example `{ notifications, accountSummary }`.
 
 If `parseKey` is omitted, the library tries to infer it from documents with one unambiguous selection path. Explicit `parseKey` always wins.
 
@@ -469,8 +481,8 @@ This is useful for logging in `graphql-request` middleware. It only affects hook
 ## Limitations
 
 - Only `graphql-request` is supported today.
-- Automatic `parseKey` inference requires exactly one top-level field in the document.
-- Inference stops at the last safe node when the shape branches or becomes ambiguous.
+- Automatic `parseKey` inference only works when the document has exactly one top-level field. Use `parseKey: ""` when you need the full root response for multiple top-level fields.
+- Inference stops at the last safe object node when a nested selection branches or becomes ambiguous.
 - `debugParseKeyHeader` only affects hook requests under `GraphqlClientProvider` or `GraphqlQueryProvider`.
 
 ## License

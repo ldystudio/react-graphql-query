@@ -237,4 +237,42 @@ describe("运行时辅助方法", () => {
         ]);
         expect(selectedData).toEqual(["a", "b"]);
     });
+
+    it("空 parseKey 返回完整 root data", () => {
+        const definition = defineGraphql<{
+            notifications: Array<{ id: number; message: string }>;
+            accountSummary: { unreadCount: number; creditBalance: number };
+        }>()({
+            parseKey: "",
+            key: ["dashboard"],
+            document: gql`
+                query {
+                    notifications {
+                        id
+                        message
+                    }
+                    accountSummary {
+                        unreadCount
+                        creditBalance
+                    }
+                }
+            `,
+        });
+        const rootData = {
+            notifications: [{ id: 1, message: "Welcome" }],
+            accountSummary: {
+                unreadCount: 2,
+                creditBalance: 8,
+            },
+        };
+
+        const parsedData = selectGraphData(rootData, definition);
+        const selectedData = selectGraphData(rootData, definition, (data) => data.accountSummary);
+
+        expect(parsedData).toBe(rootData);
+        expect(selectedData).toEqual({
+            unreadCount: 2,
+            creditBalance: 8,
+        });
+    });
 });

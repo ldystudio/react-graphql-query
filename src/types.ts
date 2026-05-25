@@ -21,9 +21,11 @@ import type {
 
 export type { GraphqlClientProviderProps, GraphqlQueryProviderProps } from "./provider";
 
-export type GraphParseKey<Path extends string> = Path extends `${infer Head}.${infer Tail}`
-    ? [Head, ...GraphParseKey<Tail>]
-    : [Path];
+export type GraphParseKey<Path extends string> = Path extends ""
+    ? []
+    : Path extends `${infer Head}.${infer Tail}`
+      ? [Head, ...GraphParseKey<Tail>]
+      : [Path];
 
 type GraphMetaKey = "__typename";
 type GraphValueObject<T> = Extract<NonNullable<T>, object>;
@@ -48,7 +50,9 @@ type GraphValue<T> = GraphValueResult<GraphValueObject<GraphSchemaValue<T>>[Grap
 
 export type GraphValueByParseKey<T, ParseKey extends string> = string extends ParseKey
     ? GraphValue<T>
-    : GraphValueAtPath<T, GraphParseKey<ParseKey>>;
+    : ParseKey extends ""
+      ? GraphValueResult<T>
+      : GraphValueAtPath<T, GraphParseKey<ParseKey>>;
 
 export type AnyGraphqlDefinition = GraphqlDefinition<unknown, string, GraphqlVariables, QueryKey | undefined>;
 
