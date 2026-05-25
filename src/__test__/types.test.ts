@@ -2,7 +2,14 @@ import { describe, expect, it } from "bun:test";
 import type { TypedDocumentNode } from "@graphql-typed-document-node/core";
 import { gql } from "graphql-request";
 import { defineGraphql } from "../definition";
-import type { GraphDocumentData, GraphDocumentItem, GraphQueryData, GraphQueryItem } from "../index";
+import type { useGraphMutation } from "../hooks";
+import type {
+    GraphDocumentData,
+    GraphDocumentItem,
+    GraphMutationVariables,
+    GraphQueryData,
+    GraphQueryItem,
+} from "../index";
 
 type Equal<A, B> =
     (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
@@ -11,6 +18,7 @@ type Equal<A, B> =
             : false
         : false;
 type Assert<T extends true> = T;
+type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 
 type ProductNode = {
     id: number;
@@ -93,6 +101,62 @@ const dashboardDefinition = defineGraphql({
     document: dashboardDocument,
 });
 
+const emptyVariablesMutationDefinition = defineGraphql<
+    {
+        demo: {
+            submit: {
+                ok: boolean;
+            };
+        };
+    },
+    Exact<{ [key: string]: never }>
+>()({
+    document: gql`
+        mutation SubmitDemo {
+            demo {
+                submit {
+                    ok
+                }
+            }
+        }
+    `,
+});
+
+const requiredVariablesMutationDefinition = defineGraphql<
+    {
+        demo: {
+            submit: {
+                ok: boolean;
+            };
+        };
+    },
+    { id: string }
+>()({
+    document: gql`
+        mutation SubmitDemoWithVariables($id: String!) {
+            demo {
+                submit(id: $id) {
+                    ok
+                }
+            }
+        }
+    `,
+});
+
+function assertEmptyMutationCanOmitVariables(
+    mutateAsync: ReturnType<typeof useGraphMutation<typeof emptyVariablesMutationDefinition>>["mutateAsync"]
+) {
+    void mutateAsync();
+}
+
+function assertVariableMutationRequiresVariables(
+    mutateAsync: ReturnType<typeof useGraphMutation<typeof requiredVariablesMutationDefinition>>["mutateAsync"]
+) {
+    // @ts-expect-error variables are required for mutations with GraphQL variables.
+    void mutateAsync();
+    void mutateAsync({ id: "demo-id" });
+}
+
 const typeAssertions = {
     graphQueryData: true as Assert<Equal<GraphQueryData<typeof productListDefinition>, ProductNode[]>>,
     graphQueryItem: true as Assert<Equal<GraphQueryItem<typeof productListDefinition>, ProductNode>>,
@@ -106,6 +170,14 @@ const typeAssertions = {
     inferredScalarArrayData: true as Assert<Equal<GraphQueryData<typeof viewerTagsDefinition>, { tags: string[] }>>,
     rootParseKeyData: true as Assert<Equal<GraphQueryData<typeof dashboardDefinition>, DashboardRoot>>,
     rootDocumentData: true as Assert<Equal<GraphDocumentData<typeof dashboardDocument, "">, DashboardRoot>>,
+    emptyMutationVariables: true as Assert<
+        Equal<GraphMutationVariables<typeof emptyVariablesMutationDefinition>, void>
+    >,
+    mutationVariables: true as Assert<
+        Equal<GraphMutationVariables<typeof requiredVariablesMutationDefinition>, { id: string }>
+    >,
+    assertEmptyMutationCanOmitVariables,
+    assertVariableMutationRequiresVariables,
 };
 
 describe("类型工具", () => {

@@ -81,7 +81,13 @@ type GraphRequestOptions<TDefinition extends AnyGraphqlDefinition> = {
     variables?: GraphqlDefinitionVariables<TDefinition>;
 };
 
-type GraphMutationVariablesShape<TVariables> = keyof TVariables extends never ? undefined : TVariables;
+type EmptyGraphMutationVariables<TVariables> = keyof TVariables extends never
+    ? true
+    : TVariables extends Record<string, never>
+      ? true
+      : false;
+
+type GraphMutationVariablesShape<TVariables> = EmptyGraphMutationVariables<TVariables> extends true ? void : TVariables;
 
 export type GraphMutationVariables<TDefinition extends AnyGraphqlDefinition> = GraphMutationVariablesShape<
     GraphqlDefinitionVariables<TDefinition>
