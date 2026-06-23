@@ -16,6 +16,16 @@ function getDirectFieldSelections(selectionSet?: SelectionSetNode) {
     return selectionSet?.selections.filter((selection): selection is FieldNode => selection.kind === Kind.FIELD) ?? [];
 }
 
+function getOnlyFieldSelection(selectionSet?: SelectionSetNode) {
+    const selections = selectionSet?.selections ?? [];
+
+    if (selections.length !== 1 || selections[0]?.kind !== Kind.FIELD) {
+        return;
+    }
+
+    return selections[0];
+}
+
 function getOperationDefinition(document: ReturnType<typeof parse>) {
     const operation = document.definitions.find(
         (definition): definition is OperationDefinitionNode => definition.kind === Kind.OPERATION_DEFINITION
@@ -57,13 +67,13 @@ export function inferGraphParseKey(document: RequestOptions["document"]) {
     let currentField = rootFields[0];
 
     while (true) {
-        const nextFields = getDirectFieldSelections(currentField.selectionSet);
+        const nextField = getOnlyFieldSelection(currentField.selectionSet);
 
-        if (nextFields.length !== 1 || nextFields[0]?.selectionSet == null) {
+        if (nextField?.selectionSet == null) {
             return path.join(".");
         }
 
-        currentField = nextFields[0];
+        currentField = nextField;
         path.push(getFieldKey(currentField));
     }
 }

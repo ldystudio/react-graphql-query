@@ -76,6 +76,27 @@ describe("inferGraphParseKey 推导", () => {
         ).toBe("viewer");
     });
 
+    it("遇到 fragment 时停在当前字段", () => {
+        expect(
+            inferGraphParseKey(gql`
+                query {
+                    catalog {
+                        products {
+                            ...Product
+                            nodes {
+                                id
+                            }
+                        }
+                    }
+                }
+
+                fragment Product on ProductConnection {
+                    id
+                }
+            `)
+        ).toBe("catalog.products");
+    });
+
     it("存在别名时使用别名", () => {
         expect(
             inferGraphParseKey(gql`
