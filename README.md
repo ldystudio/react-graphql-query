@@ -243,7 +243,7 @@ Common fields:
 
 - `document`: GraphQL query or mutation document. Required.
 - `parseKey`: response path to return as data, such as `catalog.product`; use `""` to return the full root response.
-- `key`: optional cache identity independent of `parseKey`.
+- `key`: optional cache identity independent of `parseKey`; defaults to the `parseKey` path.
 - `variables`: default variables used when callers omit them.
 - `client`: optional definition-level `GraphQLClient`.
 - TanStack Query options such as `enabled`, `staleTime`, and `gcTime`.
@@ -288,7 +288,7 @@ If `parseKey` is omitted, the library tries to infer it from documents with one 
 
 ### `key`
 
-`key` controls cache identity. Use it when the cache key should be stable or different from the response path.
+`key` controls cache identity. When omitted, it defaults to the `parseKey` path. Set it when the cache key should be stable or different from the response path.
 
 ```ts
 const PRODUCT_LIST = defineGraphql()({

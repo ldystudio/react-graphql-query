@@ -2,6 +2,7 @@ import type { TypedDocumentNode } from "@graphql-typed-document-node/core";
 import type { QueryKey } from "@tanstack/react-query";
 import type { GraphQLClient, RequestDocument, Variables } from "graphql-request";
 import { type GraphqlOperationKind, inferGraphParseKey, inferGraphqlOperationKind } from "./infer";
+import { getGraphQueryKey } from "./key";
 
 export type GraphqlVariables = Variables;
 export type GraphqlDocument<TData = unknown, TVariables extends GraphqlVariables = GraphqlVariables> =
@@ -74,16 +75,19 @@ export type GraphqlInferredParseKey<TRoot> =
             : ParseKey
         : string;
 
+type GraphqlDefinitionKeyOrDefault<TKey> = TKey extends QueryKey ? TKey : readonly string[];
+
 export type GraphqlDefinition<
     TRoot,
     ParseKey extends string = string,
     TVariables extends GraphqlVariables = GraphqlVariables,
     TKey extends QueryKey | undefined = undefined,
     TDocument extends GraphqlDocument<TRoot, TVariables> = GraphqlDocument<TRoot, TVariables>,
-> = Omit<GraphqlDefinitionInput<TDocument, ParseKey, TKey, TVariables>, "parseKey"> & {
+> = Omit<GraphqlDefinitionInput<TDocument, ParseKey, TKey, TVariables>, "key" | "parseKey"> & {
     readonly __rootType: TRoot;
     readonly __variablesType: TVariables;
     readonly kind: GraphqlOperationKind;
+    readonly key: GraphqlDefinitionKeyOrDefault<TKey>;
     readonly parseKey: ParseKey;
 };
 
@@ -123,10 +127,13 @@ function createGraphqlDefinition<
     TVariables extends GraphqlVariables,
     const TDefinition extends GraphqlDefinitionInput<GraphqlDocument, string, QueryKey | undefined, GraphqlVariables>,
 >(definition: TDefinition) {
+    const parseKey = definition.parseKey ?? inferGraphParseKey(definition.document);
+
     return {
         ...definition,
         kind: inferGraphqlOperationKind(definition.document),
-        parseKey: definition.parseKey ?? inferGraphParseKey(definition.document),
+        key: definition.key ?? getGraphQueryKey(parseKey),
+        parseKey,
         __rootType: undefined as unknown as TRoot,
         __variablesType: undefined as unknown as TVariables,
     };

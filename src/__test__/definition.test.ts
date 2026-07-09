@@ -19,6 +19,7 @@ describe("defineGraphql 定义", () => {
 
         expect(definition.kind).toBe("Mutation");
         expect(definition.parseKey).toBe("session.revoke");
+        expect(definition.key).toEqual(["session", "revoke"]);
     });
 
     it("保留手动指定的 parseKey", () => {
@@ -38,6 +39,7 @@ describe("defineGraphql 定义", () => {
 
         expect(definition.kind).toBe("Query");
         expect(definition.parseKey).toBe("catalog.products.nodes");
+        expect(definition.key).toEqual(["catalog", "products", "nodes"]);
     });
 
     it("支持不经过泛型工厂调用直接使用 typed document", () => {

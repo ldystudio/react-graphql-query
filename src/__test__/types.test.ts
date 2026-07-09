@@ -6,6 +6,7 @@ import type { useGraphMutation } from "../hooks";
 import type {
     GraphDocumentData,
     GraphDocumentItem,
+    GraphqlDefinitionKey,
     GraphMutationVariables,
     GraphQueryData,
     GraphQueryItem,
@@ -167,6 +168,8 @@ const typeAssertions = {
         Equal<GraphDocumentItem<typeof productListDocument, "catalog.products.nodes">, ProductNode>
     >,
     inferredScalarArrayParseKey: true as Assert<Equal<typeof viewerTagsDefinition.parseKey, "viewer">>,
+    inferredScalarArrayKey: true as Assert<Equal<GraphqlDefinitionKey<typeof viewerTagsDefinition>, readonly string[]>>,
+    explicitKey: true as Assert<Equal<GraphqlDefinitionKey<typeof dashboardDefinition>, readonly ["dashboard"]>>,
     inferredScalarArrayData: true as Assert<Equal<GraphQueryData<typeof viewerTagsDefinition>, { tags: string[] }>>,
     rootParseKeyData: true as Assert<Equal<GraphQueryData<typeof dashboardDefinition>, DashboardRoot>>,
     rootDocumentData: true as Assert<Equal<GraphDocumentData<typeof dashboardDocument, "">, DashboardRoot>>,
@@ -183,7 +186,9 @@ const typeAssertions = {
 describe("类型工具", () => {
     it("暴露可用于 parseKey 解析后的数据与数组元素类型", () => {
         expect(productListDefinition.parseKey).toBe("catalog.products.nodes");
+        expect(productListDefinition.key).toEqual(["catalog", "products", "nodes"]);
         expect(viewerTagsDefinition.parseKey).toBe("viewer");
+        expect(viewerTagsDefinition.key).toEqual(["viewer"]);
         expect(dashboardDefinition.parseKey).toBe("");
         expect(typeAssertions).toBeDefined();
     });
