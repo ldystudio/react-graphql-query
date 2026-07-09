@@ -30,8 +30,8 @@ export {
     createInitialDataByParseKey,
     getGraphLogKey,
     getGraphParseKey,
-    getGraphQueryLogKey,
     getGraphQueryKey,
+    getGraphQueryLogKey,
     getParsePath,
     getValueByParseKey,
 } from "./key";

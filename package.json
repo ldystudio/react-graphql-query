@@ -24,10 +24,9 @@
         "build": "rm -rf dist dist-types && bun run typecheck && rolldown -c && bun scripts/finalize-dts.ts",
         "typecheck": "tsc --noEmit && tsc -p tsconfig.scripts.json --noEmit",
         "test": "bun test",
-        "lint": "biome check .",
-        "lint:fix": "biome check --write .",
+        "lint": "biome lint --write .",
         "format": "biome format --write .",
-        "prepublishOnly": "bun format && bun lint && bun test && bun run build"
+        "prepublishOnly": "biome check --write . && bun test && bun run build"
     },
     "keywords": [
         "react",

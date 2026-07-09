@@ -46,11 +46,7 @@ function resolveGraphMutationContext<
         client: getGraphClient(definition, { client }),
         definition,
         document: definition.document as GraphqlDefinitionDocument<TDefinition>,
-        requestHeaders: withDebugParseKeyHeader(
-            requestHeaders,
-            definition,
-            runtime?.debugParseKeyHeader ?? false
-        ),
+        requestHeaders: withDebugParseKeyHeader(requestHeaders, definition, runtime?.debugParseKeyHeader ?? false),
         select,
         variables: resolveGraphVariables(
             definition.variables as GraphqlDefinitionVariables<TDefinition> | undefined,

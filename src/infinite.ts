@@ -67,11 +67,7 @@ function resolveGraphInfiniteQueryContext<const TDefinition extends AnyGraphqlDe
         initialPageParam,
         pageParamToVariables,
         queryOptions,
-        requestHeaders: withDebugParseKeyHeader(
-            requestHeaders,
-            definition,
-            runtime?.debugParseKeyHeader ?? false
-        ),
+        requestHeaders: withDebugParseKeyHeader(requestHeaders, definition, runtime?.debugParseKeyHeader ?? false),
         select,
         variables: resolveGraphVariables(
             definition.variables as GraphqlDefinitionVariables<TDefinition> | undefined,
