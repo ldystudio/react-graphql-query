@@ -267,7 +267,7 @@ describe("GraphQL 变更", () => {
         });
     });
 
-    it("当 provider 启用 debugParseKeyHeader 时为 useGraphMutation 添加 x-graph-parse-key", async () => {
+    it("当 provider 启用 debugParseKeyHeader 时为 useGraphMutation 添加 x-graph-key", async () => {
         const queryClient = new QueryClient();
         let receivedHeaders: unknown;
         const client = createClient((_document, variables, requestHeaders) => {
@@ -324,7 +324,7 @@ describe("GraphQL 变更", () => {
         await waitFor(() =>
             expect(receivedHeaders).toEqual({
                 authorization: "Bearer token",
-                "x-graph-parse-key": "catalog.updateProduct",
+                "x-graph-key": "catalog-updateProduct",
             })
         );
     });

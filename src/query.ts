@@ -3,7 +3,7 @@ import type { GraphQLClient, RequestOptions } from "graphql-request";
 import type { GraphqlDefinitionDocument, GraphqlDefinitionRoot, GraphqlDefinitionVariables } from "./definition";
 import { createInitialDataByParseKey, getGraphQueryKey } from "./key";
 import {
-    GRAPH_DEBUG_PARSE_KEY_HEADER,
+    GRAPH_DEBUG_KEY_HEADER,
     getGraphClient,
     requestGraphRootData,
     resolveGraphVariables,
@@ -57,7 +57,7 @@ function resolveGraphQueryContext<const TDefinition extends AnyGraphqlDefinition
         document,
         parseKey,
         variables: resolveGraphVariables(definitionVariables, variables),
-        requestHeaders: withDebugParseKeyHeader(requestHeaders, parseKey, runtime?.debugParseKeyHeader ?? false),
+        requestHeaders: withDebugParseKeyHeader(requestHeaders, definition, runtime?.debugParseKeyHeader ?? false),
         select,
         wrappedInitialData:
             initialData == null
@@ -137,4 +137,4 @@ export async function graphQuery<const TDefinition extends AnyGraphqlDefinition,
     return selectGraphData(rootData, definition, context.select);
 }
 
-export { GRAPH_DEBUG_PARSE_KEY_HEADER };
+export { GRAPH_DEBUG_KEY_HEADER };

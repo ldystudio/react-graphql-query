@@ -69,7 +69,7 @@ function resolveGraphInfiniteQueryContext<const TDefinition extends AnyGraphqlDe
         queryOptions,
         requestHeaders: withDebugParseKeyHeader(
             requestHeaders,
-            definition.parseKey,
+            definition,
             runtime?.debugParseKeyHeader ?? false
         ),
         select,

@@ -45,6 +45,14 @@ export function getGraphLogKey(input?: unknown) {
     return getGraphParseKey(input).replace(/\./g, "-");
 }
 
+export function getGraphQueryLogKey(input?: GraphQueryKeySource) {
+    if (input == null) {
+        return "";
+    }
+
+    return getGraphQueryKey(input).join("-");
+}
+
 export function getValueByParseKey<T, const ParseKey extends string>(
     data: T,
     parseKey: ParseKey

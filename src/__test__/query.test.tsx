@@ -8,7 +8,7 @@ import { defineGraphql } from "../definition";
 import { useGraphQuery } from "../hooks";
 import { getGraphQueryKey } from "../key";
 import { GraphqlClientProvider, GraphqlQueryProvider } from "../provider";
-import { GRAPH_DEBUG_PARSE_KEY_HEADER, graphQuery, graphQueryOptions } from "../query";
+import { GRAPH_DEBUG_KEY_HEADER, graphQuery, graphQueryOptions } from "../query";
 
 function createClient<TData>(
     resolver: (document: unknown, variables: unknown, requestHeaders?: unknown) => TData | Promise<TData>
@@ -292,7 +292,7 @@ describe("GraphQL 查询", () => {
         });
     });
 
-    it("当 provider 启用 debugParseKeyHeader 时添加 x-graph-parse-key", async () => {
+    it("当 provider 启用 debugParseKeyHeader 时添加 x-graph-key", async () => {
         const queryClient = new QueryClient();
         let receivedHeaders: unknown;
         const providerClient = createClient((_document, variables, requestHeaders) => {
@@ -343,7 +343,7 @@ describe("GraphQL 查询", () => {
 
         expect(receivedHeaders).toEqual({
             authorization: "Bearer token",
-            [GRAPH_DEBUG_PARSE_KEY_HEADER]: "user.profile",
+            [GRAPH_DEBUG_KEY_HEADER]: "user-profile",
         });
     });
 

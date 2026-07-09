@@ -1,9 +1,9 @@
 import type { GraphQLClient, RequestOptions } from "graphql-request";
 import type { GraphqlDefinitionDocument, GraphqlDefinitionRoot, GraphqlDefinitionVariables } from "./definition";
-import { getValueByParseKey } from "./key";
+import { getGraphQueryLogKey, getValueByParseKey } from "./key";
 import type { AnyGraphqlDefinition, GraphQueryData } from "./types";
 
-export const GRAPH_DEBUG_PARSE_KEY_HEADER = "x-graph-parse-key";
+export const GRAPH_DEBUG_KEY_HEADER = "x-graph-key";
 
 export function selectGraphData<const TDefinition extends AnyGraphqlDefinition, TData = GraphQueryData<TDefinition>>(
     rootData: GraphqlDefinitionRoot<TDefinition>,
@@ -30,7 +30,7 @@ export function getGraphClient<const TDefinition extends AnyGraphqlDefinition>(
 
 export function withDebugParseKeyHeader(
     requestHeaders: RequestOptions["requestHeaders"],
-    parseKey: string,
+    definition: AnyGraphqlDefinition,
     enabled: boolean
 ) {
     if (!enabled) {
@@ -39,7 +39,7 @@ export function withDebugParseKeyHeader(
 
     return {
         ...requestHeaders,
-        [GRAPH_DEBUG_PARSE_KEY_HEADER]: parseKey,
+        [GRAPH_DEBUG_KEY_HEADER]: getGraphQueryLogKey(definition),
     };
 }
 

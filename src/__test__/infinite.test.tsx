@@ -10,7 +10,7 @@ import { defineGraphql } from "../definition";
 import { useInfiniteGraphQuery } from "../hooks";
 import { graphInfiniteQueryOptionsWithRuntime } from "../infinite";
 import { GraphqlQueryProvider } from "../provider";
-import { GRAPH_DEBUG_PARSE_KEY_HEADER } from "../query";
+import { GRAPH_DEBUG_KEY_HEADER } from "../query";
 
 function createClient<TData>(
     resolver: (document: unknown, variables: unknown, requestHeaders?: unknown) => TData | Promise<TData>
@@ -258,7 +258,7 @@ describe("无限 GraphQL 查询", () => {
             },
         });
         expect(receivedHeaders).toEqual({
-            [GRAPH_DEBUG_PARSE_KEY_HEADER]: "catalog.products",
+            [GRAPH_DEBUG_KEY_HEADER]: "catalog-products",
         });
         expect(receivedVariables).toEqual({
             after: "cursor-1",

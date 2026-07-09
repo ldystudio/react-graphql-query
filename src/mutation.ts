@@ -48,7 +48,7 @@ function resolveGraphMutationContext<
         document: definition.document as GraphqlDefinitionDocument<TDefinition>,
         requestHeaders: withDebugParseKeyHeader(
             requestHeaders,
-            definition.parseKey,
+            definition,
             runtime?.debugParseKeyHeader ?? false
         ),
         select,

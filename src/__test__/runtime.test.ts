@@ -3,7 +3,7 @@ import type { GraphQLClient, RequestOptions } from "graphql-request";
 import { gql } from "graphql-request";
 import { defineGraphql } from "../definition";
 import {
-    GRAPH_DEBUG_PARSE_KEY_HEADER,
+    GRAPH_DEBUG_KEY_HEADER,
     getGraphClient,
     requestGraphRootData,
     resolveGraphVariables,
@@ -67,13 +67,27 @@ describe("运行时辅助方法", () => {
         ).toThrow("GraphQL client is required");
     });
 
-    it("按开关注入 debug parseKey header", () => {
-        expect(withDebugParseKeyHeader({ authorization: "Bearer token" }, "user.profile", false)).toEqual({
+    it("按开关注入 debug key header", () => {
+        const definition = defineGraphql<{ user: { profile: { id: number } } }>()({
+            key: ["viewer", "profile"],
+            parseKey: "user.profile",
+            document: gql`
+                query {
+                    user {
+                        profile {
+                            id
+                        }
+                    }
+                }
+            `,
+        });
+
+        expect(withDebugParseKeyHeader({ authorization: "Bearer token" }, definition, false)).toEqual({
             authorization: "Bearer token",
         });
-        expect(withDebugParseKeyHeader({ authorization: "Bearer token" }, "user.profile", true)).toEqual({
+        expect(withDebugParseKeyHeader({ authorization: "Bearer token" }, definition, true)).toEqual({
             authorization: "Bearer token",
-            [GRAPH_DEBUG_PARSE_KEY_HEADER]: "user.profile",
+            [GRAPH_DEBUG_KEY_HEADER]: "viewer-profile",
         });
     });
 

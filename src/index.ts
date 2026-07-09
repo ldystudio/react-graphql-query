@@ -30,13 +30,14 @@ export {
     createInitialDataByParseKey,
     getGraphLogKey,
     getGraphParseKey,
+    getGraphQueryLogKey,
     getGraphQueryKey,
     getParsePath,
     getValueByParseKey,
 } from "./key";
 export { graphMutation } from "./mutation";
 export { GraphqlClientProvider, GraphqlQueryProvider } from "./provider";
-export { GRAPH_DEBUG_PARSE_KEY_HEADER, graphQuery, graphQueryOptions } from "./query";
+export { GRAPH_DEBUG_KEY_HEADER, graphQuery, graphQueryOptions } from "./query";
 export type {
     AnyGraphqlDefinition,
     GraphDataItem,

@@ -14,10 +14,11 @@ describe("公开导出", () => {
         expect(library.useGraphqlClient).toBeFunction();
         expect(library.graphQuery).toBeFunction();
         expect(library.graphQueryOptions).toBeFunction();
-        expect(library.GRAPH_DEBUG_PARSE_KEY_HEADER).toBe("x-graph-parse-key");
+        expect(library.GRAPH_DEBUG_KEY_HEADER).toBe("x-graph-key");
         expect(library.inferGraphParseKey).toBeFunction();
         expect(library.getGraphParseKey).toBeFunction();
         expect(library.getGraphLogKey).toBeFunction();
+        expect(library.getGraphQueryLogKey).toBeFunction();
         expect(library.getGraphQueryKey).toBeFunction();
         expect(library.getParsePath).toBeFunction();
         expect(library.getValueByParseKey).toBeFunction();

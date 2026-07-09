@@ -453,7 +453,7 @@ For non-hook helpers such as `graphQuery`, `graphQueryOptions`, `graphInfiniteQu
 
 ## Debug Headers
 
-`GraphqlClientProvider` and `GraphqlQueryProvider` can add `x-graph-parse-key` to hook requests:
+`GraphqlClientProvider` and `GraphqlQueryProvider` can add `x-graph-key` to hook requests:
 
 ```tsx
 <GraphqlQueryProvider client={graphClient} queryClient={queryClient} debugParseKeyHeader>
