@@ -1,6 +1,6 @@
 import type { GraphQLClient, RequestOptions } from "graphql-request";
 import type { GraphqlDefinitionDocument, GraphqlDefinitionRoot, GraphqlDefinitionVariables } from "./definition";
-import { getGraphQueryLogKey, getValueByParseKey } from "./key";
+import { getGraphLogKey, getValueByParseKey } from "./key";
 import type { AnyGraphqlDefinition, GraphQueryData } from "./types";
 
 export const GRAPH_DEBUG_KEY_HEADER = "x-graph-key";
@@ -39,7 +39,7 @@ export function withDebugParseKeyHeader(
 
     return {
         ...requestHeaders,
-        [GRAPH_DEBUG_KEY_HEADER]: getGraphQueryLogKey(definition),
+        [GRAPH_DEBUG_KEY_HEADER]: getGraphLogKey(definition),
     };
 }
 

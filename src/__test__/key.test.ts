@@ -32,9 +32,12 @@ describe("键辅助方法", () => {
         );
     });
 
-    it("根据 parseKey 创建 logKey", () => {
+    it("根据 key 创建 logKey", () => {
         expect(getGraphLogKey("catalog.products.nodes")).toBe("catalog-products-nodes");
         expect(getGraphLogKey({ parseKey: "viewer.profile" })).toBe("viewer-profile");
+        expect(getGraphLogKey({ key: ["catalog", "product-list"], parseKey: "catalog.products.nodes" })).toBe(
+            "catalog-product-list"
+        );
         expect(getGraphLogKey(undefined)).toBe("");
     });
 

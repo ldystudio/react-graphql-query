@@ -6,10 +6,10 @@ import type { useGraphMutation } from "../hooks";
 import type {
     GraphDocumentData,
     GraphDocumentItem,
-    GraphqlDefinitionKey,
     GraphMutationVariables,
     GraphQueryData,
     GraphQueryItem,
+    GraphqlDefinitionKey,
 } from "../index";
 
 type Equal<A, B> =

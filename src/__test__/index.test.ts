@@ -18,7 +18,6 @@ describe("公开导出", () => {
         expect(library.inferGraphParseKey).toBeFunction();
         expect(library.getGraphParseKey).toBeFunction();
         expect(library.getGraphLogKey).toBeFunction();
-        expect(library.getGraphQueryLogKey).toBeFunction();
         expect(library.getGraphQueryKey).toBeFunction();
         expect(library.getParsePath).toBeFunction();
         expect(library.getValueByParseKey).toBeFunction();

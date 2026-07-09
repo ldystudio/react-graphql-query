@@ -31,7 +31,6 @@ export {
     getGraphLogKey,
     getGraphParseKey,
     getGraphQueryKey,
-    getGraphQueryLogKey,
     getParsePath,
     getValueByParseKey,
 } from "./key";

@@ -15,6 +15,13 @@ function isGraphParseKeySource(input: unknown): input is GraphParseKeySource {
     );
 }
 
+function isGraphQueryKeySource(input: unknown): input is GraphQueryKeySource {
+    return (
+        isGraphParseKeySource(input) ||
+        (typeof input === "object" && input !== null && "key" in input && Array.isArray(input.key))
+    );
+}
+
 export function getParsePath(input: GraphParseKeySource) {
     return getGraphParseKey(input).split(".").filter(Boolean);
 }
@@ -38,15 +45,7 @@ export function getGraphQueryKey(input: GraphQueryKeySource, variables?: Request
 }
 
 export function getGraphLogKey(input?: unknown) {
-    if (!isGraphParseKeySource(input)) {
-        return "";
-    }
-
-    return getGraphParseKey(input).replace(/\./g, "-");
-}
-
-export function getGraphQueryLogKey(input?: GraphQueryKeySource) {
-    if (input == null) {
+    if (!isGraphQueryKeySource(input)) {
         return "";
     }
 
