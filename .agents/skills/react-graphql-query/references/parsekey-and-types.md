@@ -9,9 +9,12 @@ It keeps drilling down only while:
 - each level has exactly one selected field
 - the shape is still unambiguous
 
-Inference stops early when:
+Inference fails when:
 
 - there are multiple top-level fields
+
+Inference stops early when:
+
 - a nested object branches
 - the shape becomes opaque or ambiguous
 
@@ -48,6 +51,7 @@ Do not suggest `declare const ProductDocument` in executable examples. The docum
 ## Common recommendations
 
 - simple single-path query -> let `parseKey` infer automatically
+- multiple top-level fields -> set `parseKey: ""` to return the full root response
 - branching query -> write `parseKey` explicitly
 - cursor pagination -> parse to the connection object
 - confusing cache identity -> add explicit `key`

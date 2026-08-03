@@ -1,6 +1,6 @@
 ---
 name: react-graphql-query
-description: Help users of this repository's `@ldystudio/react-graphql-query` library define `defineGraphql` definitions, wire `GraphqlClientProvider` or `GraphqlQueryProvider`, write query/mutation/infinite-query flows, use cache helpers, choose `key` vs `parseKey`, and debug parseKey or type inference issues. Use when requests mention this library's exported APIs or ask how to integrate its GraphQL patterns in application code.
+description: Help users of this repository's `@ldystudio/react-graphql-query` library configure its codegen workflow, define `defineGraphql` definitions, wire `GraphqlClientProvider` or `GraphqlQueryProvider`, write query/mutation/infinite-query flows, use cache helpers, choose `key` vs `parseKey`, and debug parseKey or type inference issues. Use when requests mention this library's exported APIs, codegen CLI, or ask how to integrate its GraphQL patterns in application code.
 ---
 
 # React GraphQL Query
@@ -15,6 +15,7 @@ Use this skill when the task is about consuming this repository's public library
    infinite query or pagination -> read `references/infinite.md`
    cache helpers or query invalidation -> read `references/cache.md`
    `parseKey`, `key`, or type inference confusion -> read `references/parsekey-and-types.md`
+   codegen setup, generated definitions, or operation type overrides -> read `references/codegen.md`
 2. Prefer this library's exported APIs over suggesting raw `graphql-request` or raw TanStack Query patterns when the library already wraps that workflow.
 3. Be explicit about client resolution and provider boundaries.
    Hook APIs can read provider client automatically.
@@ -53,4 +54,6 @@ Use this skill when the task is about consuming this repository's public library
 - `references/cache.md`
   Use for cache helper behavior, optimistic update flows, and query-client wrapper helpers.
 - `references/parsekey-and-types.md`
-  Use for `parseKey` inference, `key` guidance, TypedDocumentNode usage, codegen integration, and common type pitfalls.
+  Use for `parseKey` inference, `key` guidance, TypedDocumentNode usage, and common type pitfalls.
+- `references/codegen.md`
+  Use for codegen CLI setup, project configuration, generated definitions, formatting, and operation type overrides.
