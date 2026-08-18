@@ -36,6 +36,7 @@ Use this skill when the task is about consuming this repository's public library
 - Default query identity rule: use `parseKey` unless the cache identity should stay stable while the parse path changes; then add explicit `key`
 - Default pagination recommendation: parse to the connection object, not directly to `nodes`, so `pageInfo` stays available
 - Default cache update recommendation: use `getGraphData` and `setGraphData` instead of rebuilding the GraphQL root shape manually
+- Default optimistic update recommendation: prefer the `optimisticUpdate` option on `useGraphMutation` over the manual `onMutate`/`onError` cache-helper pattern
 
 ## Boundaries
 
@@ -52,7 +53,7 @@ Use this skill when the task is about consuming this repository's public library
 - `references/infinite.md`
   Use for `useInfiniteGraphQuery`, `graphInfiniteQueryOptions`, cursor pagination, and page-param mapping.
 - `references/cache.md`
-  Use for cache helper behavior, optimistic update flows, and query-client wrapper helpers.
+  Use for cache helper behavior, query-client wrapper helpers, and lower-level manual optimistic update flows.
 - `references/parsekey-and-types.md`
   Use for `parseKey` inference, `key` guidance, TypedDocumentNode usage, and common type pitfalls.
 - `references/codegen.md`

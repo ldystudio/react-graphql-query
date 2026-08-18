@@ -87,6 +87,7 @@ type EmptyGraphMutationVariables<TVariables> = keyof TVariables extends never
       ? true
       : false;
 
+// biome-ignore lint/suspicious/noConfusingVoidType: For no reference, it is necessary
 type GraphMutationVariablesShape<TVariables> = EmptyGraphMutationVariables<TVariables> extends true ? void : TVariables;
 
 export type GraphMutationVariables<TDefinition extends AnyGraphqlDefinition> = GraphMutationVariablesShape<
@@ -184,6 +185,8 @@ export type UseGraphMutationOptions<
     TOnMutateResult = unknown,
     TData = GraphQueryData<TDefinition>,
     TVariables = GraphMutationVariables<TDefinition>,
+    TQuery extends AnyGraphqlDefinition = TDefinition,
+    TQueryData = GraphQueryData<TQuery>,
 > = GraphMutationHookBaseOptions<TData, TVariables, TOnMutateResult> & {
     client?: GraphQLClient;
     onError?: (
@@ -209,8 +212,38 @@ export type UseGraphMutationOptions<
         onMutateResult: TOnMutateResult | undefined,
         context: GraphMutationContext<TDefinition>
     ) => Promise<unknown> | unknown;
+    optimisticUpdate?: GraphOptimisticUpdateOptions<TVariables, TQuery, TQueryData>;
     requestHeaders?: RequestOptions["requestHeaders"];
     select?: (data: GraphQueryData<TDefinition>) => TData;
+};
+
+export type GraphOptimisticUpdateOptions<
+    TVariables,
+    TQuery extends AnyGraphqlDefinition,
+    TQueryData = GraphQueryData<TQuery>,
+> = {
+    /** 被乐观更新的 query 定义。 */
+    query: TQuery;
+    /** query 的 variables，用于精确生成 queryKey（省略则无 variables 后缀）。 */
+    queryVariables?: GraphqlDefinitionVariables<TQuery>;
+    /**
+     * 缓存形态：
+     * - `"query"`（默认）：`currentData` 为 parseKey 解析后的查询数据（与 `useGraphQuery(...).data` 一致）。
+     * - `"infinite"`：`currentData` 为 `InfiniteData`（与 `useInfiniteGraphQuery(...).data` 一致）。
+     */
+    kind?: "query" | "infinite";
+    /**
+     * 计算乐观更新后的缓存值，并在 mutation 失败时自动回滚到原值。
+     * `currentData` 是当前缓存值（可能为 undefined），需返回一个新的值，不要原地修改。
+     */
+    getOptimisticState: (input: {
+        currentData: TQueryData | undefined;
+        variables: TVariables;
+    }) => TQueryData | undefined;
+    /**
+     * mutation 成功后是否失效相关 query。默认 false（乐观更新已就地生效）。
+     */
+    invalidateQueryOnSuccess?: boolean;
 };
 
 export type GraphMutationOptions<

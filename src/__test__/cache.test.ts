@@ -13,6 +13,34 @@ import {
 import { defineGraphql } from "../definition";
 
 describe("GraphQL 缓存辅助方法", () => {
+    it("缓存为空时 getGraphData 返回 undefined", () => {
+        const queryClient = new QueryClient();
+        const definition = defineGraphql<{
+            catalog: {
+                products: {
+                    nodes: Array<{ id: number; title: string }>;
+                };
+            };
+        }>()({
+            key: ["catalog", "product-list"],
+            parseKey: "catalog.products.nodes",
+            document: gql`
+                query {
+                    catalog {
+                        products {
+                            nodes {
+                                id
+                                title
+                            }
+                        }
+                    }
+                }
+            `,
+        });
+
+        expect(getGraphData(queryClient, definition)).toBeUndefined();
+    });
+
     it("从根缓存中读取解析后的数据", () => {
         const queryClient = new QueryClient();
         const definition = defineGraphql<{

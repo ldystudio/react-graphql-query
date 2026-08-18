@@ -25,7 +25,9 @@ Do not describe this as "deleting cache".
 
 ## Recommendation
 
-For optimistic updates:
+For optimistic updates, prefer the `useGraphMutation` `optimisticUpdate` option (see `references/mutations.md`): it handles cancel, snapshot, write, and rollback automatically and infers the target data type from the `query` definition.
+
+Use the cache helpers directly only for lower-level control:
 
 1. `cancelGraphQuery`
 2. `getGraphData`

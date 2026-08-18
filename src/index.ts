@@ -48,6 +48,7 @@ export type {
     GraphMutationOptions,
     GraphMutationOptionsResult,
     GraphMutationVariables,
+    GraphOptimisticUpdateOptions,
     GraphParseKey,
     GraphQueryData,
     GraphQueryDataUpdater,

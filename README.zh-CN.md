@@ -370,6 +370,34 @@ const product = await graphMutation(UPDATE_PRODUCT, {
 });
 ```
 
+### 乐观更新
+
+给 `useGraphMutation` 传 `optimisticUpdate`，可以立即把变更应用到目标 query 的缓存，mutation 失败时自动恢复原值：
+
+```ts
+const mutation = useGraphMutation<
+    typeof UPDATE_PRODUCT,
+    unknown,
+    unknown,
+    typeof PRODUCT_LIST
+>(UPDATE_PRODUCT, {
+    optimisticUpdate: {
+        query: PRODUCT_LIST,
+        getOptimisticState: ({ currentData, variables }) =>
+            currentData?.map((item) =>
+                item.id === variables.id ? { ...item, title: variables.title } : item
+            ),
+    },
+});
+```
+
+- `getOptimisticState` 接收当前解析数据（`currentData`）和 mutation 的 `variables`，返回下一个缓存值；返回 `undefined` 表示不改动缓存。
+- 失败时自动恢复原值；成功时（`invalidateQueryOnSuccess` 默认为 `false`）乐观值保留在缓存里，设为 `true` 则触发重新拉取。
+- 目标是 infinite query 时，用 `kind: "infinite"` 并传 `queryVariables`。
+- 数据类型从 `query` 定义自动推导，调用方无需手写 `GraphQueryData<...>`。
+
+乐观更新的设计灵感来自 [`tanstack-query-optimistic-updates`](https://github.com/mugglim/tanstack-query-optimistic-updates)。
+
 ## Infinite Query
 
 建议把 `parseKey` 指向 connection 本身，不要直接指向 `nodes`，这样 `pageInfo` 还在。
@@ -411,7 +439,7 @@ const query = useInfiniteGraphQuery(PRODUCT_CONNECTION, {
 - `removeGraphQuery`
 - `resetGraphQuery`
 
-乐观更新示例：
+做乐观更新时，优先使用 `useGraphMutation` 的 `optimisticUpdate` 选项（见 [乐观更新](#乐观更新)），它自动处理取消、快照、回滚和失效。需要更底层的控制时，再直接使用缓存辅助函数，例如：
 
 ```ts
 const mutation = useGraphMutation(UPDATE_PRODUCT, {

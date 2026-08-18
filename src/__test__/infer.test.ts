@@ -28,6 +28,20 @@ describe("inferGraphqlOperationKind 推导", () => {
             `)
         ).toBe("Mutation");
     });
+
+    it("可以识别 subscription", () => {
+        expect(
+            inferGraphqlOperationKind(gql`
+                subscription {
+                    catalog {
+                        productUpdated {
+                            id
+                        }
+                    }
+                }
+            `)
+        ).toBe("Subscription");
+    });
 });
 
 describe("inferGraphParseKey 推导", () => {

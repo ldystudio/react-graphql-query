@@ -8,7 +8,7 @@ import { gql } from "graphql-request";
 import type React from "react";
 import { defineGraphql } from "../definition";
 import { useInfiniteGraphQuery } from "../hooks";
-import { graphInfiniteQueryOptionsWithRuntime } from "../infinite";
+import { graphInfiniteQueryOptions, graphInfiniteQueryOptionsWithRuntime } from "../infinite";
 import { GraphqlQueryProvider } from "../provider";
 import { GRAPH_DEBUG_KEY_HEADER } from "../query";
 
@@ -309,5 +309,38 @@ describe("无限 GraphQL 查询", () => {
                 getNextPageParam: () => undefined,
             })
         ).toThrow("GraphQL client is required");
+    });
+
+    it("graphInfiniteQueryOptions 委托给 WithRuntime 版本", () => {
+        const definition = defineGraphql<{
+            catalog: {
+                products: {
+                    nodes: Array<{ id: number }>;
+                };
+            };
+        }>()({
+            client: createClient(() => ({})),
+            parseKey: "catalog.products",
+            document: gql`
+                query {
+                    catalog {
+                        products {
+                            nodes {
+                                id
+                            }
+                        }
+                    }
+                }
+            `,
+        });
+        const options = graphInfiniteQueryOptions(definition, {
+            initialPageParam: null,
+            pageParamToVariables: (pageParam, variables) => ({ ...variables, cursor: pageParam }),
+            getNextPageParam: () => undefined,
+        });
+
+        expect(options.queryKey).toEqual(["catalog", "products"]);
+        expect(options.getNextPageParam).toBeFunction();
+        expect(options.queryFn).toBeFunction();
     });
 });

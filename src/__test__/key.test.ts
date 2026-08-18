@@ -56,6 +56,19 @@ describe("键辅助方法", () => {
         ).toEqual([{ id: 1 }]);
     });
 
+    it("路径中途缺失时返回 undefined", () => {
+        expect(
+            getValueByParseKey(
+                {
+                    storefront: {
+                        // featuredProducts 缺失
+                    },
+                },
+                "storefront.featuredProducts.nodes"
+            )
+        ).toBeUndefined();
+    });
+
     it("将初始数据包装为根结构", () => {
         expect(createInitialDataByParseKey("catalog.product", { id: 1 })).toEqual({
             catalog: {

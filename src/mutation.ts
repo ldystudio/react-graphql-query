@@ -1,4 +1,5 @@
 import type { GraphQLClient, RequestOptions } from "graphql-request";
+import { getGraphData, setGraphData } from "./cache";
 import type { GraphqlDefinitionDocument, GraphqlDefinitionVariables } from "./definition";
 import { getGraphQueryKey } from "./key";
 import {
@@ -59,19 +60,149 @@ export function graphMutationOptionsWithRuntime<
     const TDefinition extends AnyGraphqlDefinition,
     TOnMutateResult = unknown,
     TData = GraphQueryData<TDefinition>,
+    TQuery extends AnyGraphqlDefinition = TDefinition,
+    TQueryData = GraphQueryData<TQuery>,
 >(
     definition: TDefinition,
-    options: UseGraphMutationOptions<TDefinition, TOnMutateResult, TData> | undefined,
+    options:
+        | UseGraphMutationOptions<
+              TDefinition,
+              TOnMutateResult,
+              TData,
+              GraphMutationVariables<TDefinition>,
+              TQuery,
+              TQueryData
+          >
+        | undefined,
     runtime: GraphMutationRuntimeOptions<TDefinition>
 ): GraphMutationOptionsResult<TDefinition, TOnMutateResult, TData> {
-    const { client, onError, onMutate, onSettled, onSuccess, requestHeaders, select, ...mutationOptions } =
-        options ?? {};
+    const {
+        client,
+        onError,
+        onMutate,
+        onSettled,
+        onSuccess,
+        optimisticUpdate,
+        requestHeaders,
+        select,
+        ...mutationOptions
+    } = options ?? {};
     const context = resolveGraphMutationContext(definition, { client, requestHeaders, select }, runtime);
     const graphContext: GraphMutationContext<TDefinition> = {
         client: context.client,
         definition,
         queryClient: runtime.queryClient,
     };
+
+    let wrapOnMutate:
+        | ((variables: GraphMutationVariables<TDefinition>) => Promise<TOnMutateResult> | TOnMutateResult)
+        | undefined;
+    let wrapOnError:
+        | ((
+              error: Error,
+              variables: GraphMutationVariables<TDefinition>,
+              onMutateResult: TOnMutateResult | undefined
+          ) => void)
+        | undefined;
+    let wrapOnSuccess:
+        | ((
+              data: TData,
+              variables: GraphMutationVariables<TDefinition>,
+              onMutateResult: TOnMutateResult | undefined
+          ) => void)
+        | undefined;
+
+    type OptimisticMutateResult = {
+        previous: TQueryData | undefined;
+        userResult: TOnMutateResult | undefined;
+    };
+
+    let writeCache: ((value: TQueryData) => void) | undefined;
+    let invalidateOnSuccess: (() => void) | undefined;
+
+    if (optimisticUpdate != null) {
+        const { query, queryVariables, kind = "query", invalidateQueryOnSuccess = false } = optimisticUpdate;
+        const queryKey = getGraphQueryKey(query, queryVariables);
+
+        writeCache = (value: TQueryData) => {
+            if (kind === "infinite") {
+                runtime.queryClient.setQueryData(queryKey, value);
+            } else {
+                setGraphData(runtime.queryClient, query, queryVariables, value as GraphQueryData<TQuery>);
+            }
+        };
+
+        if (invalidateQueryOnSuccess) {
+            invalidateOnSuccess = () => {
+                void runtime.queryClient.invalidateQueries({ queryKey });
+            };
+        }
+    }
+
+    if (onMutate != null || optimisticUpdate != null) {
+        wrapOnMutate = async (variables: GraphMutationVariables<TDefinition>) => {
+            let previous: TQueryData | undefined;
+
+            if (optimisticUpdate != null) {
+                const { query, queryVariables, kind = "query", getOptimisticState } = optimisticUpdate;
+                const queryKey = getGraphQueryKey(query, queryVariables);
+
+                await runtime.queryClient.cancelQueries({ queryKey });
+
+                previous =
+                    kind === "infinite"
+                        ? runtime.queryClient.getQueryData<TQueryData>(queryKey)
+                        : (getGraphData(runtime.queryClient, query, queryVariables) as TQueryData);
+
+                const next = getOptimisticState({ currentData: previous, variables });
+
+                if (next !== undefined) {
+                    writeCache?.(next);
+                }
+            }
+
+            const userResult = onMutate ? await onMutate(variables, graphContext) : undefined;
+
+            return optimisticUpdate != null
+                ? ({ previous, userResult } as TOnMutateResult)
+                : (userResult as TOnMutateResult);
+        };
+    }
+
+    if (onError != null || optimisticUpdate != null) {
+        wrapOnError = (error, variables, onMutateResult) => {
+            if (optimisticUpdate != null) {
+                const optimistic = onMutateResult as OptimisticMutateResult | undefined;
+
+                if (optimistic?.previous !== undefined) {
+                    writeCache?.(optimistic.previous);
+                }
+
+                if (onError != null) {
+                    void onError(error, variables, optimistic?.userResult, graphContext);
+                }
+            } else if (onError != null) {
+                void onError(error, variables, onMutateResult, graphContext);
+            }
+        };
+    }
+
+    if (onSuccess != null || optimisticUpdate != null) {
+        wrapOnSuccess = (data, variables, onMutateResult) => {
+            invalidateOnSuccess?.();
+
+            if (onSuccess != null) {
+                void onSuccess(
+                    data,
+                    variables,
+                    optimisticUpdate != null
+                        ? (onMutateResult as OptimisticMutateResult | undefined)?.userResult
+                        : onMutateResult,
+                    graphContext
+                );
+            }
+        };
+    }
 
     return {
         ...mutationOptions,
@@ -89,18 +220,8 @@ export function graphMutationOptionsWithRuntime<
 
             return selectGraphData(rootData, definition, context.select);
         },
-        onError:
-            onError == null
-                ? undefined
-                : (
-                      error: Error,
-                      variables: GraphMutationVariables<TDefinition>,
-                      onMutateResult: TOnMutateResult | undefined
-                  ) => onError(error, variables, onMutateResult, graphContext),
-        onMutate:
-            onMutate == null
-                ? undefined
-                : (variables: GraphMutationVariables<TDefinition>) => onMutate(variables, graphContext),
+        onError: wrapOnError,
+        onMutate: wrapOnMutate,
         onSettled:
             onSettled == null
                 ? undefined
@@ -110,14 +231,7 @@ export function graphMutationOptionsWithRuntime<
                       variables: GraphMutationVariables<TDefinition>,
                       onMutateResult: TOnMutateResult | undefined
                   ) => onSettled(data, error, variables, onMutateResult, graphContext),
-        onSuccess:
-            onSuccess == null
-                ? undefined
-                : (
-                      data: TData,
-                      variables: GraphMutationVariables<TDefinition>,
-                      onMutateResult: TOnMutateResult | undefined
-                  ) => onSuccess(data, variables, onMutateResult, graphContext),
+        onSuccess: wrapOnSuccess,
     };
 }
 

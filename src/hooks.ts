@@ -7,6 +7,7 @@ import { graphQueryOptionsWithRuntime } from "./query";
 import type {
     AnyGraphqlDefinition,
     GraphInfiniteData,
+    GraphMutationVariables,
     GraphQueryData,
     UseGraphMutationOptions,
     UseGraphQueryOptions,
@@ -70,18 +71,38 @@ export function useGraphMutation<
     const TDefinition extends AnyGraphqlDefinition,
     TOnMutateResult = unknown,
     TData = GraphQueryData<TDefinition>,
+    TQuery extends AnyGraphqlDefinition = TDefinition,
+    TQueryData = GraphQueryData<TQuery>,
 >(
     definition: TDefinition,
-    options?: UseGraphMutationOptions<TDefinition, TOnMutateResult, TData>
-): UseMutationResult<TData, Error, import("./types").GraphMutationVariables<TDefinition>, TOnMutateResult> {
+    options?: UseGraphMutationOptions<
+        TDefinition,
+        TOnMutateResult,
+        TData,
+        GraphMutationVariables<TDefinition>,
+        TQuery,
+        TQueryData
+    >
+): UseMutationResult<TData, Error, GraphMutationVariables<TDefinition>, TOnMutateResult> {
     const context = useGraphqlClientContext();
     const queryClient = useQueryClient();
 
     return useMutation(
-        graphMutationOptionsWithRuntime(definition, withContextClient(definition, options, context.client), {
-            debugParseKeyHeader: context.debugParseKeyHeader,
-            queryClient,
-        }),
+        graphMutationOptionsWithRuntime<TDefinition, TOnMutateResult, TData, TQuery, TQueryData>(
+            definition,
+            withContextClient(definition, options, context.client) as UseGraphMutationOptions<
+                TDefinition,
+                TOnMutateResult,
+                TData,
+                GraphMutationVariables<TDefinition>,
+                TQuery,
+                TQueryData
+            >,
+            {
+                debugParseKeyHeader: context.debugParseKeyHeader,
+                queryClient,
+            }
+        ),
         queryClient
     );
 }

@@ -370,6 +370,34 @@ const product = await graphMutation(UPDATE_PRODUCT, {
 });
 ```
 
+### Optimistic updates
+
+Pass `optimisticUpdate` to `useGraphMutation` to apply a change to a target query's cache immediately, then restore the previous value automatically when the mutation fails:
+
+```ts
+const mutation = useGraphMutation<
+    typeof UPDATE_PRODUCT,
+    unknown,
+    unknown,
+    typeof PRODUCT_LIST
+>(UPDATE_PRODUCT, {
+    optimisticUpdate: {
+        query: PRODUCT_LIST,
+        getOptimisticState: ({ currentData, variables }) =>
+            currentData?.map((item) =>
+                item.id === variables.id ? { ...item, title: variables.title } : item
+            ),
+    },
+});
+```
+
+- `getOptimisticState` receives the current parsed data (`currentData`) and the mutation `variables`, and returns the next cache value, or `undefined` to leave the cache untouched.
+- On failure the previous value is restored automatically; on success the optimistic value stays in the cache unless `invalidateQueryOnSuccess: true` triggers a refetch.
+- Use `kind: "infinite"` and pass `queryVariables` when the target is an infinite query.
+- The data type is inferred from the `query` definition, so callers do not write `GraphQueryData<...>` by hand.
+
+The optimistic update design is inspired by [`tanstack-query-optimistic-updates`](https://github.com/mugglim/tanstack-query-optimistic-updates).
+
 ## Infinite Queries
 
 Parse to the connection object, not directly to `nodes`, so `pageInfo` remains available.
@@ -411,7 +439,7 @@ Available helpers:
 - `removeGraphQuery`
 - `resetGraphQuery`
 
-Optimistic update example:
+For optimistic updates, prefer the `optimisticUpdate` option on `useGraphMutation` (see [Optimistic updates](#optimistic-updates)); it handles cancel, snapshot, rollback, and invalidation automatically. Use the helpers directly when you need lower-level control, for example:
 
 ```ts
 const mutation = useGraphMutation(UPDATE_PRODUCT, {
