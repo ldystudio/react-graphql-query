@@ -37,3 +37,17 @@ When a target needs a dedicated client, configure `definitions.client` with its 
 - Use `format.command` to format generated files after codegen.
 - Use target operation type overrides only when the generated operation type needs a known correction.
 - Prefer the public project config and CLI over calling `buildGraphqlCodegenConfig`, `syncGraphqlDefinitionsTarget`, or `pruneGeneratedTarget` directly unless the user is building custom tooling.
+
+Operation overrides can target result types or `QueryVariables`, `MutationVariables`, and `SubscriptionVariables`. Variables may be a plain object or have an outer `Exact<{ ... }>` wrapper. The field's optional marker is preserved, but its entire type is replaced:
+
+```ts
+overrides: {
+    operationTypes: [{
+        operation: "UpdateAuditStateMutationVariables",
+        path: "imageAuditReason",
+        type: "InputMaybe<Record<string, AuditReason>>",
+    }],
+}
+```
+
+Replacement types must already be available in the generated file; overrides do not add imports or resolve nested input type aliases.

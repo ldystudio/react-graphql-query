@@ -169,6 +169,45 @@ describe("codegen prune", () => {
         );
     });
 
+    it("覆盖 mutation variables，并保留依赖、Exact、InputMaybe 和其他字段", async () => {
+        const target = await writeGeneratedTargetFixture({
+            overrides: {
+                operationTypes: [
+                    {
+                        operation: "UpdateAuditStateMutationVariables",
+                        path: "imageAuditReason",
+                        type: "InputMaybe<Record<string, AuditReason>>",
+                    },
+                ],
+            },
+        });
+        const sourceText = await readFile(target.sourcePath, "utf8");
+        await writeFile(
+            target.sourcePath,
+            `${sourceText}
+export type Exact<T> = { [K in keyof T]: T[K] };
+export type InputMaybe<T> = T | null | undefined;
+export enum AuditReason { OTHER = 0 }
+export type UpdateAuditStateMutationVariables = Exact<{
+    ugcId: number;
+    auditReason?: InputMaybe<AuditReason>;
+    imageAuditReason?: InputMaybe<unknown>;
+}>;
+export const UpdateAuditStateDocument = {} as DocumentNode<DemoQuery, UpdateAuditStateMutationVariables>;
+`
+        );
+
+        await pruneGeneratedTarget(target);
+
+        const outputText = await readFile(target.outputPath, "utf8");
+        expect(outputText).toContain(
+            "export type UpdateAuditStateMutationVariables = Exact<{\n    ugcId: number;\n    auditReason?: InputMaybe<AuditReason>;\n    imageAuditReason?: InputMaybe<globalThis.Record<string, AuditReason>>;\n}>;"
+        );
+        expect(outputText).toContain("export type Exact<T>");
+        expect(outputText).toContain("export type InputMaybe<T> = T | null | undefined;");
+        expect(outputText).toContain("export enum AuditReason");
+    });
+
     it("当当前 target 中存在 operation 但 override path 未命中时抛错", async () => {
         const target = await writeGeneratedTargetFixture({
             overrides: {

@@ -37,6 +37,7 @@ Use this skill when the task is about consuming this repository's public library
 - Default pagination recommendation: parse to the connection object, not directly to `nodes`, so `pageInfo` stays available
 - Default cache update recommendation: use `getGraphData` and `setGraphData` instead of rebuilding the GraphQL root shape manually
 - Default optimistic update recommendation: prefer the `optimisticUpdate` option on `useGraphMutation` over the manual `onMutate`/`onError` cache-helper pattern
+- Codegen `overrides.operationTypes` also supports `QueryVariables`, `MutationVariables`, and `SubscriptionVariables`, including an outer `Exact` wrapper; specify the complete replacement field type, including `InputMaybe` when needed.
 
 ## Boundaries
 

@@ -39,13 +39,25 @@ function applyOperationTypeOverrides(
         return statement;
     }
 
-    if (!operationTypeSuffixes.some((suffix) => operationName.endsWith(suffix))) {
+    if (
+        !operationTypeSuffixes.some(
+            (suffix) => operationName.endsWith(suffix) || operationName.endsWith(`${suffix}Variables`)
+        )
+    ) {
         throw new Error(
             `[codegen-overrides] Rule targets non-operation type. file=${filePath} operation=${operationName}`
         );
     }
 
-    let nextTypeNode = statement.type;
+    const exactType =
+        operationName.endsWith("Variables") &&
+        ts.isTypeReferenceNode(statement.type) &&
+        ts.isIdentifier(statement.type.typeName) &&
+        statement.type.typeName.text === "Exact" &&
+        statement.type.typeArguments?.length === 1
+            ? statement.type
+            : undefined;
+    let nextTypeNode = exactType?.typeArguments?.[0] ?? statement.type;
 
     for (const rule of matchedRules) {
         nextTypeNode = replaceTypeAtPath(nextTypeNode, parseTypePath(rule.path), parseTypeExpression(rule.type), {
@@ -61,7 +73,13 @@ function applyOperationTypeOverrides(
         statement.modifiers,
         statement.name,
         statement.typeParameters,
-        nextTypeNode
+        exactType
+            ? ts.factory.updateTypeReferenceNode(
+                  exactType,
+                  exactType.typeName,
+                  ts.factory.createNodeArray([nextTypeNode])
+              )
+            : nextTypeNode
     );
 }
 
