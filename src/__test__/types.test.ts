@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { TypedDocumentNode } from "@graphql-typed-document-node/core";
 import { gql } from "graphql-request";
-import { defineGraphql } from "../definition";
+import { defineGraphql, type GraphqlDefinitionKey } from "../definition";
 import type { useGraphMutation } from "../hooks";
 import type {
     GraphDocumentData,
@@ -9,7 +9,6 @@ import type {
     GraphMutationVariables,
     GraphQueryData,
     GraphQueryItem,
-    GraphqlDefinitionKey,
 } from "../index";
 
 type Equal<A, B> =

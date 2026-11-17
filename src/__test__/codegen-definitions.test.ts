@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { generate } from "@graphql-codegen/cli";
 import { syncGraphqlDefinitionsTarget } from "../codegen/definitions";
+import { pruneGeneratedTarget } from "../codegen/prune";
 import type { GraphqlCodegenResolvedTarget } from "../codegen/types";
 
 const tempDirs: string[] = [];
@@ -48,6 +50,36 @@ afterEach(async () => {
 });
 
 describe("codegen definitions", () => {
+    it("从 schema 和 subscription 文档生成类型与 definition", async () => {
+        const rootDirPath = await createTempDir();
+        const schemaPath = join(rootDirPath, "schema.graphql");
+        const documentPath = join(rootDirPath, "subscription.graphql");
+        const target = createTarget(rootDirPath, join(rootDirPath, "src/service/__generated__/main.ts"));
+        await writeFile(
+            schemaPath,
+            "type Query { ping: String } type Subscription { event(id: ID!): Event! } type Event { id: ID! }"
+        );
+        await writeFile(documentPath, "subscription Events($id: ID!) { event(id: $id) { id } }");
+
+        await generate(
+            {
+                schema: schemaPath,
+                documents: documentPath,
+                generates: {
+                    [`${target.tempOutputDirPath}/`]: { preset: "client", presetConfig: { fragmentMasking: false } },
+                },
+            },
+            true
+        );
+        await pruneGeneratedTarget(target);
+        await syncGraphqlDefinitionsTarget(target);
+
+        expect(await readFile(target.outputPath, "utf8")).toContain("EventsSubscriptionVariables");
+        expect(await readFile(target.definitions?.outputPath ?? "", "utf8")).toContain(
+            "defineGraphql<Gen.EventsSubscription, Gen.EventsSubscriptionVariables>()"
+        );
+    });
+
     it("为缺失 Document 创建 defineGraphql 定义", async () => {
         const rootDirPath = await createTempDir();
         const outputPath = await writeGeneratedFile(

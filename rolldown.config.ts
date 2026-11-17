@@ -23,6 +23,7 @@ const externals = [
     /^react\//,
     "@tanstack/react-query",
     "graphql-request",
+    /^graphql-ws(?:\/.*)?$/,
     "graphql",
     "@graphql-codegen/cli",
     "jiti",

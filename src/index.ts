@@ -8,57 +8,31 @@ export {
     setGraphData,
 } from "./cache";
 export { useGraphqlClient } from "./context";
-export type {
-    GraphqlDefinition,
-    GraphqlDefinitionDocument,
-    GraphqlDefinitionInput,
-    GraphqlDefinitionKey,
-    GraphqlDefinitionKind,
-    GraphqlDefinitionParseKey,
-    GraphqlDefinitionRoot,
-    GraphqlDefinitionVariables,
-    GraphqlDocument,
-    GraphqlDocumentRoot,
-    GraphqlDocumentVariables,
-} from "./definition";
+export type { GraphqlDefinition, GraphqlDefinitionRoot, GraphqlDefinitionVariables } from "./definition";
 export { defineGraphql } from "./definition";
 export { useGraphMutation, useGraphQuery, useInfiniteGraphQuery } from "./hooks";
 export type { GraphqlOperationKind } from "./infer";
-export { inferGraphParseKey } from "./infer";
 export { graphInfiniteQueryOptions } from "./infinite";
-export {
-    createInitialDataByParseKey,
-    getGraphLogKey,
-    getGraphParseKey,
-    getGraphQueryKey,
-    getParsePath,
-    getValueByParseKey,
-} from "./key";
+export { getGraphLogKey, getGraphQueryKey } from "./key";
 export { graphMutation } from "./mutation";
 export { GraphqlClientProvider, GraphqlQueryProvider } from "./provider";
 export { GRAPH_DEBUG_KEY_HEADER, graphQuery, graphQueryOptions } from "./query";
+export type { GraphqlSubscriptionClient, UseGraphSubscriptionOptions } from "./subscription";
+export { createGraphqlSubscriptionClient, useGraphSubscription } from "./subscription";
 export type {
     AnyGraphqlDefinition,
-    GraphDataItem,
     GraphDocumentData,
     GraphDocumentItem,
     GraphInfiniteData,
-    GraphInfiniteQueryOptionsResult,
     GraphMutationContext,
     GraphMutationOptions,
-    GraphMutationOptionsResult,
     GraphMutationVariables,
     GraphOptimisticUpdateOptions,
-    GraphParseKey,
     GraphQueryData,
-    GraphQueryDataUpdater,
     GraphQueryItem,
     GraphQueryOptions,
-    GraphQueryOptionsResult,
     GraphqlClientProviderProps,
     GraphqlQueryProviderProps,
-    GraphValueAtPath,
-    GraphValueByParseKey,
     UseGraphMutationOptions,
     UseGraphQueryOptions,
     UseInfiniteGraphQueryOptions,

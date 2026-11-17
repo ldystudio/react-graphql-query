@@ -1,6 +1,6 @@
 ---
 name: react-graphql-query
-description: Help users of this repository's `@ldystudio/react-graphql-query` library configure its codegen workflow, define `defineGraphql` definitions, wire `GraphqlClientProvider` or `GraphqlQueryProvider`, write query/mutation/infinite-query flows, use cache helpers, choose `key` vs `parseKey`, and debug parseKey or type inference issues. Use when requests mention this library's exported APIs, codegen CLI, or ask how to integrate its GraphQL patterns in application code.
+description: Help users of this repository's `@ldystudio/react-graphql-query` library configure its codegen workflow, define `defineGraphql` definitions, wire `GraphqlClientProvider` or `GraphqlQueryProvider`, write query/mutation/subscription/infinite-query flows, use cache helpers, choose `key` vs `parseKey`, and debug parseKey or type inference issues. Use when requests mention this library's exported APIs, codegen CLI, or ask how to integrate its GraphQL patterns in application code.
 ---
 
 # React GraphQL Query
@@ -12,6 +12,7 @@ Use this skill when the task is about consuming this repository's public library
 1. Identify the user's task shape.
    `defineGraphql` / typed document setup -> read `references/queries.md`
    mutation usage or optimistic update -> read `references/mutations.md`
+   subscription setup, events, or cache updates -> read `references/subscriptions.md`
    infinite query or pagination -> read `references/infinite.md`
    cache helpers or query invalidation -> read `references/cache.md`
    `parseKey`, `key`, or type inference confusion -> read `references/parsekey-and-types.md`
@@ -26,6 +27,7 @@ Use this skill when the task is about consuming this repository's public library
    component query -> `useGraphQuery`
    non-hook fetch -> `graphQuery`
    component mutation -> `useGraphMutation`
+   component subscription -> `useGraphSubscription`
    non-hook mutation -> `graphMutation`
    component pagination -> `useInfiniteGraphQuery`
    external TanStack integration -> `graphQueryOptions` or `graphInfiniteQueryOptions`
@@ -37,6 +39,7 @@ Use this skill when the task is about consuming this repository's public library
 - Default pagination recommendation: parse to the connection object, not directly to `nodes`, so `pageInfo` stays available
 - Default cache update recommendation: use `getGraphData` and `setGraphData` instead of rebuilding the GraphQL root shape manually
 - Default optimistic update recommendation: prefer the `optimisticUpdate` option on `useGraphMutation` over the manual `onMutate`/`onError` cache-helper pattern
+- Subscription requires a `createGraphqlSubscriptionClient` client injected through the provider or hook options; never infer the server URL or authentication parameters.
 - Codegen `overrides.operationTypes` also supports `QueryVariables`, `MutationVariables`, and `SubscriptionVariables`, including an outer `Exact` wrapper; specify the complete replacement field type, including `InputMaybe` when needed.
 
 ## Boundaries
@@ -51,6 +54,8 @@ Use this skill when the task is about consuming this repository's public library
   Use for `defineGraphql`, `useGraphQuery`, `graphQuery`, `graphQueryOptions`, provider setup, and client priority.
 - `references/mutations.md`
   Use for `useGraphMutation`, `graphMutation`, mutation callback context, and optimistic update patterns.
+- `references/subscriptions.md`
+  Use for `useGraphSubscription`, WebSocket client configuration, event handling, and cache updates.
 - `references/infinite.md`
   Use for `useInfiniteGraphQuery`, `graphInfiniteQueryOptions`, cursor pagination, and page-param mapping.
 - `references/cache.md`

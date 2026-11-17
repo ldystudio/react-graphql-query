@@ -11,6 +11,7 @@
 - 直接读取解析后的数据，例如 `catalog.product`，不用每次处理完整 GraphQL root object。
 - 可从 `TypedDocumentNode` 推导返回类型和变量类型，也支持手写 root 类型。
 - 通过 `GraphqlQueryProvider` 提供共享 `GraphQLClient`。
+- 使用 `graphql-transport-ws` 订阅推送，并按需更新查询缓存。
 - 内置 codegen 流程，可从 `.graphql` 自动生成 `defineGraphql` wrapper 文件。
 
 ## 安装
@@ -118,6 +119,57 @@ export function ProductTitle({ id }: { id: string }) {
 ```
 
 `query.data` 是 `parseKey` 指向的数据，所以这个组件拿到的是 `catalog.product`，不是完整 GraphQL 响应。
+
+## Subscription
+
+创建一次订阅 client，并在各端的 Provider 中注入。地址和 `connectionParams` 应符合服务端约定；使用函数可在每次连接时读取最新凭据。
+
+```tsx
+import { createGraphqlSubscriptionClient, GraphqlQueryProvider } from "@ldystudio/react-graphql-query";
+
+const subscriptionClient = createGraphqlSubscriptionClient({
+    url: "wss://example.com/graphql",
+    connectionParams: () => ({ token: getToken() }),
+});
+
+<GraphqlQueryProvider client={graphClient} queryClient={queryClient} subscriptionClient={subscriptionClient}>
+    <App />
+</GraphqlQueryProvider>;
+```
+
+订阅 definition 与查询一样可以由 codegen 生成。每条事件会执行 `onData`，也可以通过 `cache` 更新一个查询的解析后数据：
+
+```tsx
+import { gql } from "graphql-request";
+import { defineGraphql, useGraphSubscription } from "@ldystudio/react-graphql-query";
+
+type Message = { id: string; text: string };
+const MESSAGES = defineGraphql<{ messages: Message[] }, { roomId: string }>()({
+    document: gql`query Messages($roomId: ID!) { messages(roomId: $roomId) { id text } }`,
+});
+const MESSAGE_ADDED = defineGraphql<{ messageAdded: Message }, { roomId: string }>()({
+    document: gql`subscription MessageAdded($roomId: ID!) { messageAdded(roomId: $roomId) { id text } }`,
+});
+
+function MessageEvents({ roomId }: { roomId: string }) {
+    const { status, error } = useGraphSubscription(MESSAGE_ADDED, {
+        variables: { roomId },
+        onData: (message) => console.log(message),
+        cache: {
+            query: MESSAGES,
+            queryVariables: { roomId },
+            update: (current, message) => [...(current ?? []), message],
+        },
+    });
+    return <span>{error?.message ?? status}</span>;
+}
+```
+
+- 连接按需建立并由多个订阅共享；最后一个订阅取消后关闭。变量变化、禁用或组件卸载会取消旧订阅。
+- 默认在网络断开后持续退避重连；不可恢复的协议错误（如 4401）通过 `error` 返回。状态为 `idle`、`connecting`、`connected`、`complete` 或 `error`。
+- `options.client` 优先于 Provider 的 `subscriptionClient`。客户端必须在支持 WebSocket 的运行时创建；Web SSR 应避免在服务端创建。
+- `connectionParams` 只在建立或重建连接时读取；凭据变化时可调用 `subscriptionClient.terminate()` 触发重连。
+- `cache.update` 返回 `undefined` 时不写入缓存；进行中的查询仍可能在完成后覆盖订阅写入，应由业务协调初始查询和订阅时序。
 
 ## 推荐的 Codegen 工作流
 
@@ -500,6 +552,7 @@ Hook API 的 client 优先级：
 | React 外查询 | `graphQuery` |
 | 生成 TanStack Query 配置 | `graphQueryOptions` |
 | 组件里 mutation | `useGraphMutation` |
+| 组件里 subscription | `createGraphqlSubscriptionClient`, `useGraphSubscription` |
 | React 外 mutation | `graphMutation` |
 | 组件里 infinite query | `useInfiniteGraphQuery` |
 | 生成 infinite query 配置 | `graphInfiniteQueryOptions` |
@@ -508,7 +561,7 @@ Hook API 的 client 优先级：
 
 ## 限制
 
-- 当前只支持 `graphql-request`。
+- 查询和 mutation 使用 `graphql-request`；subscription 使用 `graphql-transport-ws`。
 - 自动 `parseKey` 推导只适用于 document 只有一个顶层字段的情况。需要多个顶层字段的完整 root 响应时，请使用 `parseKey: ""`。
 - 嵌套 selection 分叉或语义不明确时，推导会停在最后一个安全 object 节点。
 - `debugParseKeyHeader` 只影响 `GraphqlClientProvider` 或 `GraphqlQueryProvider` 下的 hook 请求。
