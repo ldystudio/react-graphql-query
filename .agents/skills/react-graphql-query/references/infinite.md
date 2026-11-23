@@ -37,6 +37,12 @@ Optional:
 - `select`
 - `initialData`
 
+## Cache lifetime
+
+`useInfiniteGraphQuery` and `graphInfiniteQueryOptions` default to `gcTime: 0`, overriding the QueryClient default. Unobserved cached pages are scheduled for immediate garbage collection, including after a non-hook fetch or prefetch completes. Pass `gcTime` explicitly to retain them, including `Infinity` when needed during SSR.
+
+TanStack Query uses the longest `gcTime` for a shared key; a pre-existing longer-lived query can remain cached. A mounted disabled observer also keeps the query observed.
+
 ## Example pattern
 
 ```ts

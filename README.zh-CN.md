@@ -477,6 +477,8 @@ const query = useInfiniteGraphQuery(PRODUCT_CONNECTION, {
 
 需要原始 TanStack Query 配置时，用 `graphInfiniteQueryOptions`。
 
+`useInfiniteGraphQuery` 和 `graphInfiniteQueryOptions` 默认设置 `gcTime: 0`，会覆盖 QueryClient 的默认值。没有订阅者的缓存会被异步回收；最后一个订阅者卸载、缓存回收后，重新进入将从首页开始。没有订阅者的非 Hook 请求或预取，完成后缓存也可能被回收。需要保留分页缓存时可显式传入 `gcTime`，例如服务端渲染时传入 `Infinity`。TanStack Query 对同一 key 采用最长的 `gcTime`，已有较长生命周期的缓存可能继续保留；已挂载但禁用的订阅者也会阻止回收。
+
 ## 缓存辅助函数
 
 缓存辅助函数操作的是解析后的数据，不需要你手动重建 GraphQL root object。

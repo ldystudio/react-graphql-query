@@ -477,6 +477,8 @@ const query = useInfiniteGraphQuery(PRODUCT_CONNECTION, {
 
 Use `graphInfiniteQueryOptions` for raw TanStack Query integration.
 
+`useInfiniteGraphQuery` and `graphInfiniteQueryOptions` default to `gcTime: 0`, overriding the QueryClient default. Unobserved cache is scheduled for immediate garbage collection; after the last observer unsubscribes and the cache is removed, a later mount starts from the initial page. Non-hook fetches and prefetches with no observers may also lose their cached result after completion. Pass `gcTime` explicitly to retain cached pages, including `Infinity` when needed during SSR. TanStack Query uses the longest `gcTime` specified for a query key, so an existing longer-lived cache can remain; a mounted disabled observer also keeps the query observed.
+
 ## Cache Helpers
 
 Cache helpers operate on parsed data instead of requiring you to rebuild the GraphQL root object.

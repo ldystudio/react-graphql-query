@@ -76,6 +76,7 @@ function resolveGraphInfiniteQueryContext<const TDefinition extends AnyGraphqlDe
     };
 }
 
+/** Defaults the unused infinite-query cache lifetime to zero; pass `gcTime` to override it. */
 export function graphInfiniteQueryOptions<const TDefinition extends AnyGraphqlDefinition, TPageParam, TData>(
     definition: TDefinition,
     options: UseInfiniteGraphQueryOptions<TDefinition, TPageParam, TData>
@@ -101,6 +102,7 @@ export function graphInfiniteQueryOptionsWithRuntime<const TDefinition extends A
             | "select"
             | "variables"
         >),
+        gcTime: options.gcTime ?? 0,
         queryKey: getGraphQueryKey(definition, context.variables),
         queryFn: ({ pageParam, signal }) =>
             requestGraphRootData<TDefinition>(

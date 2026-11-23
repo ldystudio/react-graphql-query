@@ -37,6 +37,7 @@ Use this skill when the task is about consuming this repository's public library
 - Default provider recommendation: `GraphqlQueryProvider` for app-level setup
 - Default query identity rule: use `parseKey` unless the cache identity should stay stable while the parse path changes; then add explicit `key`
 - Default pagination recommendation: parse to the connection object, not directly to `nodes`, so `pageInfo` stays available
+- `useInfiniteGraphQuery` and `graphInfiniteQueryOptions` default `gcTime` to `0`; pass `gcTime` explicitly to retain unused pages, including for non-hook prefetches.
 - Default cache update recommendation: use `getGraphData` and `setGraphData` instead of rebuilding the GraphQL root shape manually; pass `{ kind: "infinite" }` for infinite query caches
 - Default optimistic update recommendation: prefer the `optimisticUpdate` option on `useGraphMutation` over the manual `onMutate`/`onError` cache-helper pattern
 - Subscription requires a `createGraphqlSubscriptionClient` client injected through the provider or hook options; never infer the server URL or authentication parameters.
