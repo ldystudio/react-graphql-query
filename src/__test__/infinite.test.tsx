@@ -6,6 +6,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { GraphQLClient, RequestOptions } from "graphql-request";
 import { gql } from "graphql-request";
 import type React from "react";
+import { getGraphData, setGraphData } from "../cache";
 import { defineGraphql } from "../definition";
 import { useInfiniteGraphQuery } from "../hooks";
 import { graphInfiniteQueryOptions, graphInfiniteQueryOptionsWithRuntime } from "../infinite";
@@ -137,16 +138,38 @@ describe("无限 GraphQL 查询", () => {
         );
 
         act(() => {
+            setGraphData(
+                queryClient,
+                definition,
+                { first: 2 },
+                (data) =>
+                    data && {
+                        ...data,
+                        pages: data.pages.map((page) => ({
+                            ...page,
+                            nodes: page.nodes.filter((node) => node.id !== 1),
+                        })),
+                    },
+                { kind: "infinite" }
+            );
+        });
+
+        await waitFor(() => expect(result.current.data).toEqual([{ id: 2, title: "page-1-b" }]));
+
+        act(() => {
             void result.current.fetchNextPage();
         });
 
         await waitFor(() =>
             expect(result.current.data).toEqual([
-                { id: 1, title: "page-1-a" },
                 { id: 2, title: "page-1-b" },
                 { id: 3, title: "page-2-a" },
             ])
         );
+        expect(getGraphData(queryClient, definition, { first: 2 }, { kind: "infinite" })?.pageParams).toEqual([
+            null,
+            "cursor-1",
+        ]);
 
         expect(requests).toEqual([
             {

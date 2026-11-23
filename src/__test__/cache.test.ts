@@ -313,3 +313,88 @@ describe("GraphQL 缓存辅助方法", () => {
         expect(queryClient.getQueryData(queryKey)).toBeUndefined();
     });
 });
+
+describe("无限查询缓存", () => {
+    const definition = defineGraphql<
+        { catalog: { products: { nodes: Array<{ id: number; title: string }>; nextPage: number | null } } },
+        { category: string }
+    >()({
+        parseKey: "catalog.products",
+        document: gql`
+            query Products($category: String!) {
+                catalog {
+                    products(category: $category) {
+                        nodes { id title }
+                        nextPage
+                    }
+                }
+            }
+        `,
+    });
+    const infinite = { kind: "infinite" } as const;
+
+    it("按 variables 更新分页缓存并保留游标", () => {
+        const queryClient = new QueryClient();
+        const variables = { category: "a" };
+        const otherVariables = { category: "b" };
+        const original = {
+            pages: [
+                { nodes: [{ id: 1, title: "one" }], nextPage: 20 },
+                { nodes: [{ id: 2, title: "two" }], nextPage: null },
+            ],
+            pageParams: [null, 20],
+        };
+        queryClient.setQueryData(queryKeyOf(definition, variables), original);
+        queryClient.setQueryData(queryKeyOf(definition, otherVariables), original);
+
+        const result = setGraphData(
+            queryClient,
+            definition,
+            variables,
+            (current) =>
+                current && {
+                    ...current,
+                    pages: current.pages.map((page) => ({
+                        ...page,
+                        nodes: page.nodes.filter((item) => item.id !== 2),
+                    })),
+                },
+            infinite
+        );
+
+        const expected = { ...original, pages: [original.pages[0], { nodes: [], nextPage: null }] };
+        expect(result).toEqual(expected);
+        expect(getGraphData(queryClient, definition, variables, infinite)).toEqual(expected);
+        expect(queryClient.getQueryData(queryKeyOf(definition, variables))).toEqual(expected);
+        expect(getGraphData(queryClient, definition, otherVariables, infinite)).toEqual(original);
+        expect(original.pages[1].nodes).toHaveLength(1);
+    });
+
+    it("支持创建分页缓存并读取指定类型的页参数", () => {
+        const queryClient = new QueryClient();
+        const variables = { category: "a" };
+        const value = { pages: [{ nodes: [{ id: 1, title: "one" }], nextPage: null }], pageParams: [null] };
+
+        setGraphData(queryClient, definition, variables, value, infinite);
+        const data = getGraphData<typeof definition, number | null>(queryClient, definition, variables, infinite);
+        const pageParam: number | null | undefined = data?.pageParams[0];
+
+        expect(data).toEqual(value);
+        expect(queryClient.getQueryData(queryKeyOf(definition, variables))).toEqual(value);
+        expect(pageParam).toBeNull();
+    });
+
+    it("updater 返回 undefined 时不修改已有分页缓存，也不创建空缓存", () => {
+        const queryClient = new QueryClient();
+        const variables = { category: "a" };
+        const value = { pages: [{ nodes: [], nextPage: null }], pageParams: [null] };
+        queryClient.setQueryData(queryKeyOf(definition, variables), value);
+
+        setGraphData(queryClient, definition, variables, () => undefined, infinite);
+        setGraphData(queryClient, definition, { category: "b" }, () => undefined, infinite);
+
+        expect(getGraphData(queryClient, definition, variables, infinite)).toEqual(value);
+        expect(getGraphData(queryClient, definition, { category: "b" }, infinite)).toBeUndefined();
+        expect(queryClient.getQueryState(queryKeyOf(definition, { category: "b" }))).toBeUndefined();
+    });
+});

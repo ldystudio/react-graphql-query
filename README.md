@@ -491,6 +491,26 @@ Available helpers:
 - `removeGraphQuery`
 - `resetGraphQuery`
 
+For an infinite query, pass `{ kind: "infinite" }` to read or update its complete cache. Each page contains parsed data; preserve `pageParams` when updating pages:
+
+```ts
+const variables = { first: 20 };
+const previous = getGraphData(queryClient, PRODUCT_CONNECTION, variables, { kind: "infinite" });
+
+setGraphData(queryClient, PRODUCT_CONNECTION, variables, (current) =>
+    current && {
+        ...current,
+        pages: current.pages.map((page) => ({
+            ...page,
+            nodes: page.nodes.filter((node) => node.id !== 1),
+        })),
+    },
+    { kind: "infinite" }
+);
+```
+
+Page parameter types default to `unknown`; use `getGraphData<typeof PRODUCT_CONNECTION, string | null>(...)` or `setGraphData<typeof PRODUCT_CONNECTION, string | null>(...)` when a specific cursor type is needed.
+
 For optimistic updates, prefer the `optimisticUpdate` option on `useGraphMutation` (see [Optimistic updates](#optimistic-updates)); it handles cancel, snapshot, rollback, and invalidation automatically. Use the helpers directly when you need lower-level control, for example:
 
 ```ts

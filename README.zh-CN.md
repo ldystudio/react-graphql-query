@@ -491,6 +491,26 @@ const query = useInfiniteGraphQuery(PRODUCT_CONNECTION, {
 - `removeGraphQuery`
 - `resetGraphQuery`
 
+无限查询传入 `{ kind: "infinite" }` 后，可以读取或更新完整分页缓存。每一页都是解析后的数据；更新时要保留 `pageParams`：
+
+```ts
+const variables = { first: 20 };
+const previous = getGraphData(queryClient, PRODUCT_CONNECTION, variables, { kind: "infinite" });
+
+setGraphData(queryClient, PRODUCT_CONNECTION, variables, (current) =>
+    current && {
+        ...current,
+        pages: current.pages.map((page) => ({
+            ...page,
+            nodes: page.nodes.filter((node) => node.id !== 1),
+        })),
+    },
+    { kind: "infinite" }
+);
+```
+
+分页参数的类型默认为 `unknown`；需要指定游标类型时，可使用 `getGraphData<typeof PRODUCT_CONNECTION, string | null>(...)` 或 `setGraphData<typeof PRODUCT_CONNECTION, string | null>(...)`。
+
 做乐观更新时，优先使用 `useGraphMutation` 的 `optimisticUpdate` 选项（见 [乐观更新](#乐观更新)），它自动处理取消、快照、回滚和失效。需要更底层的控制时，再直接使用缓存辅助函数，例如：
 
 ```ts

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import type { TypedDocumentNode } from "@graphql-typed-document-node/core";
+import type { QueryClient } from "@tanstack/react-query";
 import { gql } from "graphql-request";
+import { getGraphData, setGraphData } from "../cache";
 import { defineGraphql, type GraphqlDefinitionKey } from "../definition";
 import type { useGraphMutation } from "../hooks";
 import type {
@@ -157,6 +159,18 @@ function assertVariableMutationRequiresVariables(
     void mutateAsync({ id: "demo-id" });
 }
 
+function assertCacheDataTypes(queryClient: QueryClient) {
+    const regular = getGraphData(queryClient, productListDefinition);
+    const infinite = getGraphData(queryClient, productListDefinition, undefined, { kind: "infinite" });
+    regular?.map((node) => node.id);
+    infinite?.pages[0].map((node) => node.id);
+
+    // @ts-expect-error Regular query data is not infinite-query data.
+    setGraphData(queryClient, productListDefinition, undefined, { pages: [], pageParams: [] });
+    // @ts-expect-error Infinite-query data must include pages and pageParams.
+    setGraphData(queryClient, productListDefinition, undefined, [], { kind: "infinite" });
+}
+
 const typeAssertions = {
     graphQueryData: true as Assert<Equal<GraphQueryData<typeof productListDefinition>, ProductNode[]>>,
     graphQueryItem: true as Assert<Equal<GraphQueryItem<typeof productListDefinition>, ProductNode>>,
@@ -180,6 +194,7 @@ const typeAssertions = {
     >,
     assertEmptyMutationCanOmitVariables,
     assertVariableMutationRequiresVariables,
+    assertCacheDataTypes,
 };
 
 describe("类型工具", () => {

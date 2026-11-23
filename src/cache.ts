@@ -1,7 +1,7 @@
 import type { ResetOptions } from "@tanstack/query-core";
 import type { InvalidateOptions, InvalidateQueryFilters, QueryClient, QueryKey } from "@tanstack/react-query";
 import { getGraphQueryKey, getParsePath, getValueByParseKey } from "./key";
-import type { AnyGraphqlDefinition, GraphQueryData, GraphQueryDataUpdater } from "./types";
+import type { AnyGraphqlDefinition, GraphInfiniteData, GraphQueryData, GraphQueryDataUpdater } from "./types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null;
@@ -36,10 +36,25 @@ function toQueryFilters<TDefinition extends AnyGraphqlDefinition>(
     };
 }
 
+/** Read the complete infinite-query cache, including its pages and page parameters. */
+export function getGraphData<TDefinition extends AnyGraphqlDefinition, TPageParam = unknown>(
+    queryClient: QueryClient,
+    definition: TDefinition,
+    variables: import("./definition").GraphqlDefinitionVariables<TDefinition> | undefined,
+    options: { kind: "infinite" }
+): GraphInfiniteData<TDefinition, TPageParam> | undefined;
+/** Read the parsed data of a regular query. */
 export function getGraphData<TDefinition extends AnyGraphqlDefinition>(
     queryClient: QueryClient,
     definition: TDefinition,
-    variables?: import("./definition").GraphqlDefinitionVariables<TDefinition>
+    variables?: import("./definition").GraphqlDefinitionVariables<TDefinition>,
+    options?: { kind?: "query" }
+): GraphQueryData<TDefinition> | undefined;
+export function getGraphData<TDefinition extends AnyGraphqlDefinition>(
+    queryClient: QueryClient,
+    definition: TDefinition,
+    variables?: import("./definition").GraphqlDefinitionVariables<TDefinition>,
+    options?: { kind?: "query" | "infinite" }
 ) {
     const rootData = queryClient.getQueryData(queryKeyOf(definition, variables));
 
@@ -47,16 +62,45 @@ export function getGraphData<TDefinition extends AnyGraphqlDefinition>(
         return undefined;
     }
 
-    return getValueByParseKey(rootData, definition) as GraphQueryData<TDefinition>;
+    return options?.kind === "infinite"
+        ? (rootData as GraphInfiniteData<TDefinition, unknown>)
+        : (getValueByParseKey(rootData, definition) as GraphQueryData<TDefinition>);
 }
 
+/** Update the complete infinite-query cache; returning undefined leaves it unchanged. */
+export function setGraphData<TDefinition extends AnyGraphqlDefinition, TPageParam = unknown>(
+    queryClient: QueryClient,
+    definition: TDefinition,
+    variables: import("./definition").GraphqlDefinitionVariables<TDefinition> | undefined,
+    updater: GraphQueryDataUpdater<GraphInfiniteData<TDefinition, TPageParam>>,
+    options: { kind: "infinite" }
+): GraphInfiniteData<TDefinition, TPageParam> | undefined;
+/** Update parsed regular-query data while preserving the remaining GraphQL response. */
 export function setGraphData<TDefinition extends AnyGraphqlDefinition>(
     queryClient: QueryClient,
     definition: TDefinition,
     variables: import("./definition").GraphqlDefinitionVariables<TDefinition> | undefined,
-    updater: GraphQueryDataUpdater<GraphQueryData<TDefinition>>
+    updater: GraphQueryDataUpdater<GraphQueryData<TDefinition>>,
+    options?: { kind?: "query" }
+): GraphQueryData<TDefinition> | undefined;
+export function setGraphData<TDefinition extends AnyGraphqlDefinition>(
+    queryClient: QueryClient,
+    definition: TDefinition,
+    variables: import("./definition").GraphqlDefinitionVariables<TDefinition> | undefined,
+    updater:
+        | GraphQueryDataUpdater<GraphQueryData<TDefinition>>
+        | GraphQueryDataUpdater<GraphInfiniteData<TDefinition, unknown>>,
+    options?: { kind?: "query" | "infinite" }
 ) {
     const queryKey = queryKeyOf(definition, variables);
+
+    if (options?.kind === "infinite") {
+        return queryClient.setQueryData(
+            queryKey,
+            updater as GraphQueryDataUpdater<GraphInfiniteData<TDefinition, unknown>>
+        );
+    }
+
     const parsePath = getParsePath(definition);
 
     return queryClient.setQueryData(queryKey, (currentRootData) => {
@@ -64,7 +108,7 @@ export function setGraphData<TDefinition extends AnyGraphqlDefinition>(
             currentRootData == null
                 ? undefined
                 : (getValueByParseKey(currentRootData, definition) as GraphQueryData<TDefinition>);
-        const nextData = resolveUpdater(updater, currentData);
+        const nextData = resolveUpdater(updater as GraphQueryDataUpdater<GraphQueryData<TDefinition>>, currentData);
 
         if (nextData === undefined) {
             return undefined;
